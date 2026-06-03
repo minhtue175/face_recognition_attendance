@@ -1,0 +1,2 @@
++ đường dẫn thay đổi cam của máy với web cam 
+    attendance/views.py dòng 30

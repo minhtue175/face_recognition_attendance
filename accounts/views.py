@@ -12,8 +12,8 @@ from .forms import RegisterForm
 
 # ─── Login ───────────────────────────────────────────────────
 def login_view(request):
-    #if request.user.is_authenticated:
-    #    return redirect('dashboard')
+    # if request.user.is_authenticated:
+    #     return redirect('dashboard')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -39,9 +39,11 @@ def logout_view(request):
 def dashboard_view(request):
     user = request.user
 
-    if user.role == 'teacher':
+    # Đã sửa thành .Role viết hoa theo model
+    # Hỗ trợ cả 'teacher' và 'lecturer' cho bạn thoải mái setup trong Admin
+    if user.Role in ['teacher', 'lecturer', 'giảng viên']:
         return _teacher_dashboard(request, user)
-    elif user.role == 'student':
+    elif user.Role == 'student':
         return _student_dashboard(request, user)
     else:
         # Admin hoặc role không xác định → về trang admin
@@ -50,38 +52,32 @@ def dashboard_view(request):
 
 def _teacher_dashboard(request, user):
     """Dashboard riêng cho giảng viên."""
-    # Import ở đây để tránh lỗi nếu model chưa migrate
+    from classes.models import Class
+    from accounts.models import Lecturers
+
     try:
-        from django.utils import timezone
-        from classes.models import ClassSession
+        # Tìm hồ sơ Giảng viên được nối với tài khoản User đang đăng nhập
+        lecturer = Lecturers.objects.filter(User=user).first()
 
-        today = timezone.localdate()  # dùng localdate thay vì now().date()
-
-        today_sessions = ClassSession.objects.filter(
-            teacher=user,
-            date=today
-        ).select_related('subject').order_by('start_time')
-
-        # Đếm số lớp khác nhau giảng viên đang dạy
-        total_classes = ClassSession.objects.filter(
-            teacher=user
-        ).values('subject').distinct().count()
+        if lecturer:
+            today_sessions = Class.objects.filter(Lecturer=lecturer)
+            total_classes = today_sessions.count()
+        else:
+            today_sessions = []
+            total_classes = 0
 
         stats = {
             'total_classes': total_classes,
-            'total_students': 0,   # tạm thời, cập nhật sau khi có model Enrollment
-            'attendance_rate': 0,  # tạm thời
-            'sessions_today': today_sessions.count(),
+            'total_students': 0,   # Sẽ đắp logic sau
+            'attendance_rate': 0,  # Sẽ đắp logic sau
+            'sessions_today': len(today_sessions) if today_sessions else 0,
         }
 
     except Exception:
-        # Nếu model chưa có hoặc chưa migrate → hiển thị trang trống
+        # Bắt lỗi nếu lỡ quên migrate
         today_sessions = []
         stats = {
-            'total_classes': 0,
-            'total_students': 0,
-            'attendance_rate': 0,
-            'sessions_today': 0,
+            'total_classes': 0, 'total_students': 0, 'attendance_rate': 0, 'sessions_today': 0,
         }
 
     return render(request, 'accounts/dashboard_teacher.html', {
@@ -92,20 +88,30 @@ def _teacher_dashboard(request, user):
 
 
 def _student_dashboard(request, user):
-    from attendance.models import AttendanceRecord
+    """Dashboard riêng cho sinh viên."""
+    from attendance.models import AttendanceHistory
+    from accounts.models import Students
     from django.db.models import Count, Q
 
-    records = AttendanceRecord.objects.filter(
-        student=user
-    ).select_related(
-        'session__class_group__subject'
-    ).order_by('-session__date')[:5]   # 5 buổi gần nhất
+    try:
+        # Tìm hồ sơ Sinh viên tương ứng với tài khoản User này
+        student_profile = Students.objects.get(User=user)
 
-    stats = AttendanceRecord.objects.filter(student=user).aggregate(
-        total=Count('id'),
-        present=Count('id', filter=Q(status='present')),
-        absent=Count('id', filter=Q(status='absent')),
-    )
+        # Lấy 5 buổi điểm danh gần nhất (Đã map đúng cột)
+        records = AttendanceHistory.objects.filter(
+            Student=student_profile
+        ).select_related('Class').order_by('-AttendanceDate', '-CheckInTime')[:5]
+
+        # Thống kê số buổi
+        stats = AttendanceHistory.objects.filter(Student=student_profile).aggregate(
+            total=Count('AttendanceID'),
+            present=Count('AttendanceID', filter=Q(Status='present')),
+            absent=Count('AttendanceID', filter=Q(Status='absent')),
+        )
+    except Students.DoesNotExist:
+        # Nếu tài khoản này chưa được nối với Sinh viên cụ thể thì trả về 0
+        records = []
+        stats = {'total': 0, 'present': 0, 'absent': 0}
 
     return render(request, 'accounts/dashboard_student.html', {
         'user': user,
@@ -132,7 +138,7 @@ def api_login(request):
         token, _ = Token.objects.get_or_create(user=user)
         return Response({
             'token': token.key,
-            'role': user.role,
+            'role': user.Role, # Đã sửa thành Role viết hoa để API không lỗi
             'name': user.get_full_name(),
             'username': user.username,
         })
@@ -142,6 +148,7 @@ def api_login(request):
         status=400
     )
 
+# ─── Profile & Register ──────────────────────────────────────
 @login_required
 def profile(request):
     """Trang hồ sơ giảng viên — xem và cập nhật thông tin cá nhân"""
@@ -160,28 +167,19 @@ def profile(request):
     return render(request, 'accounts/profile.html')
 
 def register_view(request):
-
+    
     if request.method == 'POST':
-
+        
         form = RegisterForm(request.POST)
-
+        
         if form.is_valid():
-
+            
             user = form.save(commit=False)
-
-            user.set_password(
-                form.cleaned_data['password']
-            )
-
+            user.set_password(form.cleaned_data['password'])
             user.save()
-
-            messages.success(
-                request,
-                "Đăng ký thành công"
-            )
-
+            messages.success(request, "Đăng ký thành công")
             return redirect('login')
-
+        
     else:
         form = RegisterForm()
 

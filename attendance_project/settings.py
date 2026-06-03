@@ -9,6 +9,9 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+import pymysql
+pymysql.install_as_MySQLdb()
+
 
 from pathlib import Path
 
@@ -82,21 +85,16 @@ WSGI_APPLICATION = 'attendance_project.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    #'default': {
-    #   'ENGINE': 'django.db.backends.sqlite3',
-    #    'NAME': BASE_DIR / 'db.sqlite3',
-    #}
-
+    
     'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'attendance_db',
-        'HOST': 'ADMIN-PC',          # hoặc tên server SQL Server của bạn
-        'PORT': '1433',
-        'USER': '',                   # để trống nếu dùng Windows Authentication
-        'PASSWORD': '',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'pbl5_attendance',  
+        'USER': 'root',             
+        'PASSWORD': '',             
+        'HOST': 'localhost',        
+        'PORT': '3306',         
         'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-            'trusted_connection': 'yes',   # Windows Authentication
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
     }
 }

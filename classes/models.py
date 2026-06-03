@@ -1,47 +1,18 @@
 from django.db import models
-from accounts.models import User
+from accounts.models import Lecturers, Students
 
-
-class Subject(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100)
-
-    class Meta:
-        db_table = 'Subject'
+class Class(models.Model):
+    ClassID = models.AutoField(primary_key=True)
+    ClassCode = models.CharField(max_length=20, unique=True)
+    ClassName = models.CharField(max_length=100)
+    Lecturer = models.ForeignKey(Lecturers, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.name
+        return self.ClassCode
 
-
-class Schedule(models.Model):
-    subject    = models.CharField(max_length=255)
-    time_start = models.TimeField()
-    time_end   = models.TimeField()
-    room       = models.CharField(max_length=50)
-    serial     = models.CharField(max_length=20, blank=True)
-    total      = models.IntegerField(default=0)
-    code_class = models.CharField(max_length=20)
-    account    = models.ForeignKey(User, on_delete=models.CASCADE,
-                                   related_name='schedules')
+class StudentClass(models.Model):
+    Student = models.ForeignKey(Students, on_delete=models.CASCADE)
+    Class = models.ForeignKey(Class, on_delete=models.CASCADE)
 
     class Meta:
-        db_table = 'Schedule'
-
-    def __str__(self):
-        return f"{self.subject} - {self.code_class}"
-
-
-class ClassSession(models.Model):
-    schedule   = models.ForeignKey(Schedule, on_delete=models.CASCADE,
-                                   related_name='sessions',
-                                   null=True, blank=True)
-    date       = models.DateField()
-    room       = models.CharField(max_length=20)
-    start_time = models.TimeField()
-    end_time   = models.TimeField()
-
-    class Meta:
-        db_table = 'ClassSession'
-
-    def __str__(self):
-        return f"{self.schedule} - {self.date}"
+        unique_together = ('Student', 'Class')
