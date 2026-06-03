@@ -35,6 +35,9 @@ except Exception as e:
     processor = None
     manager = None
 
+# MỚI THÊM: Biến toàn cục để lưu tạm những người vừa được nhận diện
+recent_recognitions = set()
+
 # ==========================================
 # 1. HÀM HIỂN THỊ GIAO DIỆN CHÍNH (ĐIỂM DANH)
 # ==========================================
@@ -152,6 +155,7 @@ def save_attendance(request, session_id=None):
 # ==========================================
 def generate_frames():
     """Đọc camera, xử lý nhận diện AI và đẩy stream lên web"""
+    global recent_recognitions # MỚI THÊM: Gọi biến toàn cục
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
 
     while True:
@@ -194,6 +198,9 @@ def generate_frames():
             stt, identity = manager.get_attendance_info(name, track_id)
             
             if identity != "Unknown":
+                # MỚI THÊM: Ném tên sinh viên vào giỏ nếu nhận diện được
+                recent_recognitions.add(identity)
+
                 if identity in names_in_this_frame:
                     display_text = f"WARN: Duplicate {identity}"
                     color = (0, 0, 255) 
@@ -219,6 +226,13 @@ def video_feed(request):
     """API endpoint để web gọi stream"""
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
+# MỚI THÊM: API Trả về danh sách khuôn mặt cho HTML Radar
+def get_recent_recognitions(request):
+    """API trả về danh sách các khuôn mặt vừa được AI nhận diện"""
+    global recent_recognitions
+    faces = list(recent_recognitions)
+    recent_recognitions.clear() # Đọc xong dọn sạch để lần sau không trùng
+    return JsonResponse({'faces': faces})
 
 # ==========================================
 # 4. CÁC HÀM PHỤ (Lịch sử)

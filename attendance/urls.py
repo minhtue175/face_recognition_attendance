@@ -10,5 +10,6 @@ urlpatterns = [
     path('session/<int:session_id>/save/', views.save_attendance, name='save_attendance'),
     path('student/history/', views.student_history, name='student_history'),
     path('teacher-history/', views.teacher_history_view, name='teacher_history'),
+    path('get-recognitions/', views.get_recent_recognitions, name='get_recognitions'),
     
 ]
