@@ -1,18 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}Lịch sử điểm danh{% endblock %}
+{% block title %}Lịch sử điểm danh - Giảng viên{% endblock %}
 
 {% block content %}
 <style>
 .history-wrap { width: 100%; padding: 24px; }
 .page-title { font-size: 22px; font-weight: bold; margin-bottom: 24px; color: #333; }
-
-/* Stats */
-.sv-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-.sv-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.sv-stat-num { font-size: 32px; font-weight: bold; color: #1a1a1a; margin: 0; }
-.sv-stat-label { font-size: 14px; color: #6b7280; margin-top: 8px; }
-
-/* Table */
 .table-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 thead tr { background: #f9fafb; }
@@ -27,22 +19,7 @@ tr:last-child td { border-bottom: none; }
 </style>
 
 <div class="history-wrap">
-  <div class="page-title">Chi tiết lịch sử điểm danh</div>
-
-  <div class="sv-stats">
-    <div class="sv-stat">
-      <div class="sv-stat-num">{{ stats.total }}</div>
-      <div class="sv-stat-label">Tổng buổi</div>
-    </div>
-    <div class="sv-stat">
-      <div class="sv-stat-num" style="color:#10b981">{{ stats.present }}</div>
-      <div class="sv-stat-label">Có mặt</div>
-    </div>
-    <div class="sv-stat">
-      <div class="sv-stat-num" style="color:#ef4444">{{ stats.absent }}</div>
-      <div class="sv-stat-label">Vắng mặt</div>
-    </div>
-  </div>
+  <div class="page-title">Quản lý Lịch sử Điểm danh</div>
 
   <div class="table-card">
     <table>
@@ -50,6 +27,7 @@ tr:last-child td { border-bottom: none; }
         <tr>
           <th>Lớp học</th>
           <th>Ngày</th>
+          <th>Sinh viên</th>
           <th>Giờ vào</th>
           <th>Kết quả</th>
         </tr>
@@ -59,6 +37,7 @@ tr:last-child td { border-bottom: none; }
         <tr>
           <td><span style="font-weight: 500;">{{ r.Class.ClassName }}</span></td>
           <td>{{ r.AttendanceDate|date:"d/m/Y" }}</td>
+          <td><strong>{{ r.Student.FullName }}</strong> <br><span style="font-size: 12px; color: #6b7280;">{{ r.Student.Student_id }}</span></td>
           <td>
             {% if r.CheckInTime %}
               {{ r.CheckInTime|time:"H:i" }}
@@ -70,7 +49,7 @@ tr:last-child td { border-bottom: none; }
         </tr>
         {% empty %}
         <tr>
-          <td colspan="4" class="empty-row">Chưa có dữ liệu điểm danh.</td>
+          <td colspan="5" class="empty-row">Chưa có dữ liệu điểm danh nào của các lớp bạn phụ trách.</td>
         </tr>
         {% endfor %}
       </tbody>

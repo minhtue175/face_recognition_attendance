@@ -3,17 +3,20 @@ import json
 import numpy as np
 from datetime import date
 from django.utils import timezone
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import StreamingHttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 
 # Import models từ DB của bạn
 from classes.models import Class, StudentClass
 from attendance.models import AttendanceHistory, Facelogs
-from accounts.models import Students
+from accounts.models import Students, Lecturers
 
 # Import AI từ thư mục core_ai
 from core_ai.face_processor import FaceProcessor
 from core_ai.attendance_logic import AttendanceManager
+
 
 # Khởi tạo AI Model ở dạng biến toàn cục
 print("Đang nạp mô hình AI...")
@@ -27,13 +30,18 @@ except Exception as e:
     manager = None
 
 # ==========================================
-# 1. HÀM HIỂN THỊ GIAO DIỆN CHÍNH
+# 1. HÀM HIỂN THỊ GIAO DIỆN CHÍNH (ĐIỂM DANH)
 # ==========================================
+@login_required
 def attendance_page(request):
     """Render ra trang điểm danh, lấy dữ liệu lớp học và sinh viên từ DB"""
-    
-    # Lấy tất cả danh sách lớp để hiển thị ra Dropdown
-    sessions = Class.objects.all()
+   
+    # Lấy danh sách lớp DO GIẢNG VIÊN NÀY DẠY để hiển thị ra Dropdown
+    try:
+        lecturer = Lecturers.objects.get(User=request.user)
+        sessions = Class.objects.filter(Lecturer=lecturer)
+    except Lecturers.DoesNotExist:
+        sessions = []
     
     # Lấy ID lớp học đang được chọn trên URL (?session_id=...)
     session_id = request.GET.get('session_id')
@@ -45,8 +53,8 @@ def attendance_page(request):
 
     if session_id:
         try:
-            # Lấy thông tin lớp học
-            selected_session = Class.objects.get(ClassID=session_id)
+            # Lấy thông tin lớp học (kiểm tra thêm điều kiện lớp này phải của GV này)
+            selected_session = Class.objects.get(ClassID=session_id, Lecturer=lecturer)
             
             # Lấy danh sách sinh viên thuộc lớp này qua bảng trung gian
             student_classes = StudentClass.objects.filter(Class=selected_session).select_related('Student')
@@ -88,6 +96,7 @@ def attendance_page(request):
     }
     
     return render(request, 'attendance/attendance_page.html', context)
+
 
 # ==========================================
 # 2. HÀM XỬ LÝ API LƯU ĐIỂM DANH TỪ WEB
@@ -131,12 +140,13 @@ def save_attendance(request, session_id=None):
             
     return JsonResponse({'ok': False, 'error': 'Method không hợp lệ'})
 
+
 # ==========================================
 # 3. HÀM XỬ LÝ LUỒNG CAMERA & AI
 # ==========================================
 def generate_frames():
     """Đọc camera, xử lý nhận diện AI và đẩy stream lên web"""
-    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW) 
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
 
     while True:
         ret, frame = cap.read()
@@ -203,9 +213,57 @@ def video_feed(request):
     """API endpoint để web gọi stream"""
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
+
 # ==========================================
 # 4. CÁC HÀM PHỤ (Lịch sử)
 # ==========================================
+
+@login_required
 def student_history(request):
-    """Trang xem lịch sử của sinh viên (Chờ code html)"""
-    return render(request, 'attendance/student_history.html')
+    """Trang xem lịch sử ĐẦY ĐỦ của sinh viên"""
+    if request.user.Role != 'student':
+        return redirect('dashboard')
+
+    try:
+        student_profile = Students.objects.get(User=request.user)
+        # Lấy TOÀN BỘ lịch sử điểm danh thay vì 5 dòng gần nhất
+        records = AttendanceHistory.objects.filter(
+            Student=student_profile
+        ).select_related('Class').order_by('-AttendanceDate', '-CheckInTime')
+
+        # Thống kê tổng quan
+        stats = AttendanceHistory.objects.filter(Student=student_profile).aggregate(
+            total=Count('AttendanceID'),
+            present=Count('AttendanceID', filter=Q(Status='present')),
+            absent=Count('AttendanceID', filter=Q(Status='absent')),
+        )
+    except Students.DoesNotExist:
+        records = []
+        stats = {'total': 0, 'present': 0, 'absent': 0}
+
+    return render(request, 'attendance/student_history.html', {
+        'records': records,
+        'stats': stats
+    })
+
+
+@login_required
+def teacher_history_view(request):
+    """Trang xem lịch sử dành cho Giảng viên"""
+    # Chỉ Giảng viên mới được vào
+    if request.user.Role not in ['teacher', 'lecturer', 'giảng viên']:
+        return redirect('dashboard')
+
+    try:
+        # Tìm hồ sơ Giảng viên
+        lecturer = Lecturers.objects.get(User=request.user)
+        # Lấy tất cả các lớp do Giảng viên này dạy
+        classes = Class.objects.filter(Lecturer=lecturer)
+        # Lấy toàn bộ lịch sử điểm danh của các lớp đó
+        records = AttendanceHistory.objects.filter(
+            Class__in=classes
+        ).select_related('Student', 'Class').order_by('-AttendanceDate', '-CheckInTime')
+    except Lecturers.DoesNotExist:
+        records = []
+
+    return render(request, 'attendance/teacher_history.html', {'records': records})

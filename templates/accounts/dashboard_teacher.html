@@ -1,89 +1,50 @@
+{% extends 'base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <title>Dashboard - {{ user.get_full_name }}</title>
-  <link rel="stylesheet" href="{% static 'css/main.css' %}">
-  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-</head>
-<body class="dashboard-page">
+{% block title %}Tổng quan - Giảng viên{% endblock %}
 
-<!-- Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-user">
-    <div class="avatar">{{ user.first_name|first }}{{ user.last_name|first }}</div>
-    <div>
-      <p class="user-name">{{ user.get_full_name }}</p>
-      <p class="user-role">Giảng viên</p>
-    </div>
-  </div>
-  <nav class="sidebar-nav">
-    <a href="{% url 'dashboard' %}" class="nav-item active">📊 Tổng quan</a>
-    <a href="#" class="nav-item">👤 Hồ sơ</a>
-    <a href="#" class="nav-item">📅 Lịch dạy</a>
-    <a href="{% url 'import_class' %}" class="nav-item">📤 Import lớp</a>
-    <a href="{% url 'attendance' %}" class="nav-item">✅ Điểm danh</a>
-    <a href="#" class="nav-item">📈 Kết quả</a>
-    <a href="{% url 'logout' %}" class="nav-item nav-logout">🚪 Đăng xuất</a>
-  </nav>
-</aside>
+{% block content %}
+<div style="padding: 24px; width: 100%;">
+  <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 24px; color: #333;">Tổng quan</h2>
 
-<!-- Main content -->
-<main class="main-content">
-  <h2 class="page-title">Tổng quan</h2>
-
-  <!-- Stat cards — dữ liệu được truyền từ view -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <p class="stat-val">{{ stats.total_classes }}</p>
-      <p class="stat-label">Lớp đang dạy</p>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px;">
+    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <p style="font-size: 32px; font-weight: bold; color: #185FA5; margin: 0;">{{ stats.total_classes }}</p>
+      <p style="font-size: 14px; color: #6b7280; margin: 8px 0 0 0;">Lớp đang dạy</p>
     </div>
-    <div class="stat-card">
-      <p class="stat-val">{{ stats.total_students }}</p>
-      <p class="stat-label">Sinh viên</p>
+    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <p style="font-size: 32px; font-weight: bold; color: #10b981; margin: 0;">{{ stats.total_students }}</p>
+      <p style="font-size: 14px; color: #6b7280; margin: 8px 0 0 0;">Sinh viên</p>
     </div>
-    <div class="stat-card">
-      <p class="stat-val">{{ stats.attendance_rate }}%</p>
-      <p class="stat-label">Tỷ lệ tham dự</p>
+    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <p style="font-size: 32px; font-weight: bold; color: #f59e0b; margin: 0;">{{ stats.attendance_rate }}%</p>
+      <p style="font-size: 14px; color: #6b7280; margin: 8px 0 0 0;">Tỷ lệ tham dự</p>
     </div>
-    <div class="stat-card">
-      <p class="stat-val">{{ stats.sessions_today }}</p>
-      <p class="stat-label">Buổi hôm nay</p>
+    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <p style="font-size: 32px; font-weight: bold; color: #ef4444; margin: 0;">{{ stats.sessions_today }}</p>
+      <p style="font-size: 14px; color: #6b7280; margin: 8px 0 0 0;">Buổi hôm nay</p>
     </div>
   </div>
 
-  <!-- Lịch hôm nay -->
-  <h3 class="section-title">Lịch giảng dạy hôm nay</h3>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
+  <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #333;">Các lớp phụ trách</h3>
+  <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+      <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
         <tr>
-          <th>Môn học</th><th>Phòng</th>
-          <th>Thời gian</th><th>Sĩ số</th><th>Trạng thái</th>
+          <th style="padding: 16px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase;">Môn học (Lớp)</th>
+          <th style="padding: 16px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase;">Mã Lớp</th>
         </tr>
       </thead>
       <tbody>
         {% for session in today_sessions %}
-        <tr>
-          <td>{{ session.subject.name }}</td>
-          <td>{{ session.room }}</td>
-          <td>{{ session.start_time|time:"H:i" }} – {{ session.end_time|time:"H:i" }}</td>
-          <td>{{ session.enrolled_count }}</td>
-          <td>
-            <span class="badge badge-{{ session.status_color }}">
-              {{ session.get_status_display }}
-            </span>
-          </td>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 16px; font-size: 14px; color: #111; font-weight: 500;">{{ session.ClassName }}</td>
+          <td style="padding: 16px; font-size: 14px; color: #6b7280;">{{ session.ClassCode }}</td>
         </tr>
         {% empty %}
-          <tr><td colspan="5" class="empty-row">Không có buổi học hôm nay</td></tr>
+          <tr><td colspan="2" style="text-align: center; padding: 32px; color: #9ca3af; font-size: 14px;">Không có lớp nào</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</main>
-
-<script src="{% static 'js/dashboard.js' %}"></script>
-</body>
-</html>
+</div>
+{% endblock %}

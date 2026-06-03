@@ -12,18 +12,22 @@
 <aside class="sidebar">
   <div class="sidebar-user">
     <div class="avatar">
-      {{ request.user.first_name|first }}{{ request.user.last_name|first }}
+      {{ request.user.first_name|first|default:"U" }}{{ request.user.last_name|first|default:"" }}
     </div>
     <div>
-      <p class="user-name">{{ request.user.get_full_name }}</p>
+      <p class="user-name">{{ request.user.get_full_name|default:request.user.username }}</p>
       <p class="user-role">
-        {% if request.user.role == 'teacher' %}Giảng viên{% else %}Sinh viên{% endif %}
+        {% if request.user.Role == 'teacher' or request.user.Role == 'lecturer' %}
+          Giảng viên
+        {% else %}
+          Sinh viên
+        {% endif %}
       </p>
     </div>
   </div>
 
   <nav class="sidebar-nav">
-    {% if request.user.role == 'teacher' %}
+    {% if request.user.Role == 'teacher' or request.user.Role == 'lecturer' %}
       <a href="{% url 'dashboard' %}"
          class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
         📊 Tổng quan
@@ -44,9 +48,9 @@
          class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
         ✅ Điểm danh
       </a>
-      <a href="{% url 'results' %}"
-         class="nav-item {% if request.resolver_match.url_name == 'results' %}active{% endif %}">
-        📈 Kết quả
+      <a href="{% url 'teacher_history' %}"
+         class="nav-item {% if request.resolver_match.url_name == 'teacher_history' %}active{% endif %}">
+        📋 Lịch sử điểm danh
       </a>
     {% else %}
       <a href="{% url 'dashboard' %}"

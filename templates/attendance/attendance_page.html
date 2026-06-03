@@ -1,119 +1,8 @@
+{% extends 'base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <title>Điểm danh</title>
-  <link rel="stylesheet" href="{% static 'css/main.css' %}">
-</head>
-<body class="dashboard-page" style="background-color: #f4f7f6; font-family: sans-serif;">
+{% block title %}Điểm danh Camera AI{% endblock %}
 
-{% include 'accounts/sidebar_teacher.html' %}
-
-<main class="main-content" style="padding: 24px;">
-  <div style="display:flex; gap:24px; align-items:flex-start;">
-
-    <div style="width:220px; flex-shrink:0; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <p style="font-size:13px; color:#888; margin-bottom:8px; font-weight: 600;">Buổi học</p>
-      <select id="session-select" onchange="changeSession(this.value)"
-              style="width:100%; padding:9px 12px; border:1px solid #ddd;
-                     border-radius:8px; font-size:13px; margin-bottom:16px; outline: none;">
-        <option value="">-- Chọn buổi học --</option>
-        {% for s in sessions %}
-        <option value="{{ s.ClassID }}"
-          {% if selected_session.ClassID == s.ClassID %}selected{% endif %}>
-          {{ s.ClassName }} — {{ s.ClassCode }}
-        </option>
-        {% endfor %}
-      </select>
-
-      {% if selected_session %}
-      <div class="stat-card" style="margin-bottom:12px; padding: 12px; background: #f8fbff; border-radius: 8px; border: 1px solid #e1ecf8;">
-        <p style="font-size:12px; color:#888;">Tổng / Có mặt</p>
-        <p style="font-size:24px; font-weight:700; color:#185FA5;">
-          {{ present }} / {{ total }}
-        </p>
-        <div style="background:#eee; border-radius:4px; height:6px; margin:8px 0 4px; overflow: hidden;">
-          <div class="progress-bar" style="width: {{ rate }}%"></div>
-        </div>
-        <p style="font-size:12px; color:#185FA5; font-weight: 600;">{{ rate }}% tham dự</p>
-      </div>
-
-      <button onclick="markAll('present')" class="btn-action btn-present">
-        ✓ Tất cả có mặt
-      </button>
-      <button onclick="markAll('absent')" class="btn-action btn-absent"
-              style="margin-top:8px;">
-        ✕ Tất cả vắng
-      </button>
-      <button onclick="saveAttendance()" class="btn-action btn-save"
-              style="margin-top:16px;">
-        💾 Lưu kết quả
-      </button>
-      <button onclick="exportExcel()" class="btn-action btn-export"
-              style="margin-top:8px;">
-        📄 Xuất Excel
-      </button>
-      {% endif %}
-    </div>
-
-    <div style="flex:1;">
-      {% if selected_session %}
-      <div style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-        <h2 style="font-size:18px; font-weight:600; margin-bottom:20px; color: #333;">
-          Điểm danh: {{ selected_session.ClassName }} — {% now "d/m/Y" %}
-        </h2>
-
-        <div style="margin-bottom: 24px; text-align: center; border-radius: 8px; background: #fafafa; padding: 16px; border: 1px dashed #ccc;">
-            <p style="font-size: 14px; margin-bottom: 12px; color: #d93025; font-weight: bold;">🔴 Camera AI Tracking Real-time</p>
-            <div style="display: inline-block; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <img src="{% url 'video_feed' %}" width="720" height="480" alt="Đang tải Camera Stream..." style="display: block;">
-            </div>
-        </div>
-
-        <div class="table-wrap" style="overflow-x: auto;">
-          <table class="data-table" id="attendance-table" style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-              <tr style="border-bottom: 2px solid #eee;">
-                <th style="padding: 12px; color: #666; font-size: 13px;">Mã SV</th>
-                <th style="padding: 12px; color: #666; font-size: 13px;">Họ tên</th>
-                <th style="padding: 12px; color: #666; font-size: 13px;">Lớp CB</th>
-                <th style="padding: 12px; color: #666; font-size: 13px;">Trạng thái điểm danh</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in students_data %}
-              <tr data-student-id="{{ item.student.StudentID }}" style="border-bottom: 1px solid #f0f0f0;">
-                <td style="padding: 12px; font-size: 14px; font-weight: 500;">{{ item.student.StudentCode }}</td>
-                <td style="padding: 12px; font-size: 14px;">{{ item.student.FullName }}</td>
-                <td style="padding: 12px; font-size: 14px; color: #888;">{{ selected_session.ClassCode }}</td>
-                <td style="padding: 12px;">
-                  <div class="status-toggle" data-status="{{ item.status }}">
-                    <button class="toggle-btn {% if item.status == 'present' %}active-present{% endif %}"
-                            onclick="toggleStatus(this, 'present')">Có mặt</button>
-                    <button class="toggle-btn {% if item.status == 'absent' %}active-absent{% endif %}"
-                            onclick="toggleStatus(this, 'absent')">Vắng</button>
-                    <button class="toggle-btn {% if item.status == 'late' %}active-late{% endif %}"
-                            onclick="toggleStatus(this, 'late')">Đi trễ</button>
-                  </div>
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="4" class="empty-row" style="padding: 24px; text-align: center; color: #888;">Chưa có sinh viên trong lớp</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% else %}
-      <div style="text-align:center; padding:4rem; color:#bbb; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-        Vui lòng chọn buổi học ở cột bên trái để bắt đầu điểm danh và bật Camera
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</main>
-
+{% block content %}
 <style>
 .progress-bar{
     background:#185FA5;
@@ -136,8 +25,110 @@
 .active-late    { background:#FAEEDA; color:#854F0B; border-color:#854F0B; font-weight:600; }
 </style>
 
+<div style="display:flex; gap:24px; align-items:flex-start; width: 100%; padding: 24px;">
+
+  <div style="width:220px; flex-shrink:0; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <p style="font-size:13px; color:#888; margin-bottom:8px; font-weight: 600;">Buổi học</p>
+    <select id="session-select" onchange="changeSession(this.value)"
+            style="width:100%; padding:9px 12px; border:1px solid #ddd;
+                   border-radius:8px; font-size:13px; margin-bottom:16px; outline: none;">
+      <option value="">-- Chọn buổi học --</option>
+      {% for s in sessions %}
+      <option value="{{ s.ClassID }}"
+        {% if selected_session.ClassID == s.ClassID %}selected{% endif %}>
+        {{ s.ClassName }} — {{ s.ClassCode }}
+      </option>
+      {% endfor %}
+    </select>
+
+    {% if selected_session %}
+    <div class="stat-card" style="margin-bottom:12px; padding: 12px; background: #f8fbff; border-radius: 8px; border: 1px solid #e1ecf8;">
+      <p style="font-size:12px; color:#888;">Tổng / Có mặt</p>
+      <p style="font-size:24px; font-weight:700; color:#185FA5;">
+        {{ present }} / {{ total }}
+      </p>
+      <div style="background:#eee; border-radius:4px; height:6px; margin:8px 0 4px; overflow: hidden;">
+        <div class="progress-bar" style="width: {{ rate }}%"></div>
+      </div>
+      <p style="font-size:12px; color:#185FA5; font-weight: 600;">{{ rate }}% tham dự</p>
+    </div>
+
+    <button onclick="markAll('present')" class="btn-action btn-present">
+      ✓ Tất cả có mặt
+    </button>
+    <button onclick="markAll('absent')" class="btn-action btn-absent"
+            style="margin-top:8px;">
+      ✕ Tất cả vắng
+    </button>
+    <button onclick="saveAttendance()" class="btn-action btn-save"
+            style="margin-top:16px;">
+      💾 Lưu kết quả
+    </button>
+    <button onclick="exportExcel()" class="btn-action btn-export"
+            style="margin-top:8px;">
+      📄 Xuất Excel
+    </button>
+    {% endif %}
+  </div>
+
+  <div style="flex:1;">
+    {% if selected_session %}
+    <div style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <h2 style="font-size:18px; font-weight:600; margin-bottom:20px; color: #333;">
+        Điểm danh: {{ selected_session.ClassName }} — {% now "d/m/Y" %}
+      </h2>
+
+      <div style="margin-bottom: 24px; text-align: center; border-radius: 8px; background: #fafafa; padding: 16px; border: 1px dashed #ccc;">
+          <p style="font-size: 14px; margin-bottom: 12px; color: #d93025; font-weight: bold;">🔴 Camera AI Tracking Real-time</p>
+          <div style="display: inline-block; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+              <img src="{% url 'video_feed' %}" width="720" height="480" alt="Đang tải Camera Stream..." style="display: block;">
+          </div>
+      </div>
+
+      <div class="table-wrap" style="overflow-x: auto;">
+        <table class="data-table" id="attendance-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 2px solid #eee; background: #f9fafb;">
+              <th style="padding: 12px; color: #666; font-size: 13px;">Mã SV</th>
+              <th style="padding: 12px; color: #666; font-size: 13px;">Họ tên</th>
+              <th style="padding: 12px; color: #666; font-size: 13px;">Lớp CB</th>
+              <th style="padding: 12px; color: #666; font-size: 13px;">Trạng thái điểm danh</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in students_data %}
+            <tr data-student-id="{{ item.student.StudentID }}" style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 12px; font-size: 14px; font-weight: 500;">{{ item.student.StudentCode }}</td>
+              <td style="padding: 12px; font-size: 14px;">{{ item.student.FullName }}</td>
+              <td style="padding: 12px; font-size: 14px; color: #888;">{{ selected_session.ClassCode }}</td>
+              <td style="padding: 12px;">
+                <div class="status-toggle" data-status="{{ item.status }}">
+                  <button class="toggle-btn {% if item.status == 'present' %}active-present{% endif %}"
+                          onclick="toggleStatus(this, 'present')">Có mặt</button>
+                  <button class="toggle-btn {% if item.status == 'absent' %}active-absent{% endif %}"
+                          onclick="toggleStatus(this, 'absent')">Vắng</button>
+                  <button class="toggle-btn {% if item.status == 'late' %}active-late{% endif %}"
+                          onclick="toggleStatus(this, 'late')">Đi trễ</button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="empty-row" style="padding: 32px; text-align: center; color: #888;">Chưa có sinh viên trong lớp</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:4rem; color:#bbb; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      Vui lòng chọn buổi học ở cột bên trái để bắt đầu điểm danh và bật Camera
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <script>
-// Sửa lấy ClassID
+  
 const SESSION_ID = "{{ selected_session.ClassID|default:'' }}";
 const CSRF_TOKEN = "{{ csrf_token }}";
 
@@ -189,7 +180,7 @@ function saveAttendance() {
         });
     });
 
-    // Dùng thẻ {% url %} của Django thay vì fix cứng đường dẫn
+
     fetch('{% url "save_attendance" %}', {
         method: 'POST',
         headers: {
@@ -216,5 +207,4 @@ function exportExcel() {
     alert('Tính năng xuất Excel sẽ được thêm sau!');
 }
 </script>
-</body>
-</html>
+{% endblock %}

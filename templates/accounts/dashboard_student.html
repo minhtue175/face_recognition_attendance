@@ -20,7 +20,7 @@ td{padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111;vertical-align:m
 tr:last-child td{border-bottom:none}
 .subject-name{font-weight:500}
 .dash{color:#9ca3af}
-.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500; text-transform: capitalize;}
 .badge.present{background:#d1fae5;color:#065f46}
 .badge.absent{background:#fee2e2;color:#991b1b}
 .badge.late{background:#fef3c7;color:#92400e}
@@ -52,9 +52,9 @@ tr:last-child td{border-bottom:none}
     <table>
       <thead>
         <tr>
-          <th>Môn học</th>
+          <th>Lớp học</th>
           <th>Ngày</th>
-          <th>Phòng</th>
+          
           <th>Giờ vào</th>
           <th>Kết quả</th>
         </tr>
@@ -62,21 +62,19 @@ tr:last-child td{border-bottom:none}
       <tbody>
         {% for r in records %}
         <tr>
-          <td><span class="subject-name">{{ r.session.class_group.subject.name }}</span></td>
-          <td>{{ r.session.date|date:"d/m/Y" }}</td>
-          <td>{{ r.session.room }}</td>
+          <td><span class="subject-name">{{ r.Class.ClassName }}</span></td>
+          <td>{{ r.AttendanceDate|date:"d/m/Y" }}</td>
           <td>
-            {% if r.checkin_time %}{{ r.checkin_time|time:"H:i" }}
+            {% if r.CheckInTime %}{{ r.CheckInTime|time:"H:i" }}
             {% else %}<span class="dash">—</span>{% endif %}
           </td>
-          <td><span class="badge {{ r.status }}">{{ r.get_status_display }}</span></td>
+          <td><span class="badge {{ r.Status }}">{{ r.Status }}</span></td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="empty-row">Chưa có dữ liệu điểm danh.</td></tr>
+        <tr><td colspan="4" class="empty-row">Chưa có dữ liệu điểm danh.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <a href="{% url 'student_history' %}" class="view-all">Xem toàn bộ lịch sử →</a>
-</div>
+  </div>
 {% endblock %}
