@@ -7,6 +7,8 @@ from django.shortcuts import render, redirect
 from django.http import StreamingHttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
+import os
+from django.conf import settings
 
 # Import models từ DB của bạn
 from classes.models import Class, StudentClass
@@ -21,11 +23,15 @@ from core_ai.attendance_logic import AttendanceManager
 # Khởi tạo AI Model ở dạng biến toàn cục
 print("Đang nạp mô hình AI...")
 try:
-    processor = FaceProcessor("core_ai/models/final_face_recognizer.pkl")
+    # Dùng la bàn BASE_DIR để trỏ chính xác vào thư mục gốc của project
+    model_path = os.path.join(settings.BASE_DIR, "core_ai", "models", "final_face_recognizer.pkl")
+    print(f"Đang tìm mô hình tại: {model_path}") # In ra để kiểm tra
+    
+    processor = FaceProcessor(model_path)
     manager = AttendanceManager()
-    print("Nạp mô hình thành công!")
+    print("✅ NẠP MÔ HÌNH THÀNH CÔNG!")
 except Exception as e:
-    print(f"Lỗi nạp mô hình (Kiểm tra lại đường dẫn): {e}")
+    print(f"❌ LỖI NẠP MÔ HÌNH RỒI: {e}")
     processor = None
     manager = None
 
