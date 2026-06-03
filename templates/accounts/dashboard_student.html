@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Tổng quan{% endblock %}
+{% block content %}
+<style>
+.sv-wrap{max-width:860px;margin:2rem auto}
+.page-title{font-size:18px;font-weight:600;margin-bottom:1.5rem;color:#1a1a1a}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.75rem}
+.stat-card{border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;text-align:center;background:#fff}
+.stat-num{font-size:28px;font-weight:600;color:#1a1a1a}
+.stat-num.green{color:#059669}
+.stat-num.red{color:#ef4444}
+.stat-label{font-size:13px;color:#6b7280;margin-top:4px}
+.section-title{font-size:15px;font-weight:600;margin-bottom:1rem;color:#1a1a1a}
+.table-card{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead tr{background:#f9fafb}
+th{padding:11px 16px;text-align:left;font-size:12px;font-weight:600;color:#6b7280;
+   text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5e7eb}
+td{padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.subject-name{font-weight:500}
+.dash{color:#9ca3af}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.badge.present{background:#d1fae5;color:#065f46}
+.badge.absent{background:#fee2e2;color:#991b1b}
+.badge.late{background:#fef3c7;color:#92400e}
+.empty-row{text-align:center;padding:2.5rem;color:#9ca3af;font-size:14px}
+.view-all{display:inline-block;margin-top:1rem;font-size:13px;color:#059669;text-decoration:none}
+.view-all:hover{text-decoration:underline}
+</style>
+
+<div class="sv-wrap">
+  <div class="page-title">Tổng quan</div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.total }}</div>
+      <div class="stat-label">Tổng buổi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num green">{{ stats.present }}</div>
+      <div class="stat-label">Có mặt</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num red">{{ stats.absent }}</div>
+      <div class="stat-label">Vắng mặt</div>
+    </div>
+  </div>
+
+  <div class="section-title">5 buổi gần nhất</div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Môn học</th>
+          <th>Ngày</th>
+          <th>Phòng</th>
+          <th>Giờ vào</th>
+          <th>Kết quả</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td><span class="subject-name">{{ r.session.class_group.subject.name }}</span></td>
+          <td>{{ r.session.date|date:"d/m/Y" }}</td>
+          <td>{{ r.session.room }}</td>
+          <td>
+            {% if r.checkin_time %}{{ r.checkin_time|time:"H:i" }}
+            {% else %}<span class="dash">—</span>{% endif %}
+          </td>
+          <td><span class="badge {{ r.status }}">{{ r.get_status_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="empty-row">Chưa có dữ liệu điểm danh.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a href="{% url 'student_history' %}" class="view-all">Xem toàn bộ lịch sử →</a>
+</div>
+{% endblock %}

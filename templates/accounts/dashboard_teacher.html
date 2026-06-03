@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard - {{ user.get_full_name }}</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body class="dashboard-page">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-user">
+    <div class="avatar">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+    <div>
+      <p class="user-name">{{ user.get_full_name }}</p>
+      <p class="user-role">Giảng viên</p>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="{% url 'dashboard' %}" class="nav-item active">📊 Tổng quan</a>
+    <a href="#" class="nav-item">👤 Hồ sơ</a>
+    <a href="#" class="nav-item">📅 Lịch dạy</a>
+    <a href="{% url 'import_class' %}" class="nav-item">📤 Import lớp</a>
+    <a href="{% url 'attendance' %}" class="nav-item">✅ Điểm danh</a>
+    <a href="#" class="nav-item">📈 Kết quả</a>
+    <a href="{% url 'logout' %}" class="nav-item nav-logout">🚪 Đăng xuất</a>
+  </nav>
+</aside>
+
+<!-- Main content -->
+<main class="main-content">
+  <h2 class="page-title">Tổng quan</h2>
+
+  <!-- Stat cards — dữ liệu được truyền từ view -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <p class="stat-val">{{ stats.total_classes }}</p>
+      <p class="stat-label">Lớp đang dạy</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-val">{{ stats.total_students }}</p>
+      <p class="stat-label">Sinh viên</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-val">{{ stats.attendance_rate }}%</p>
+      <p class="stat-label">Tỷ lệ tham dự</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-val">{{ stats.sessions_today }}</p>
+      <p class="stat-label">Buổi hôm nay</p>
+    </div>
+  </div>
+
+  <!-- Lịch hôm nay -->
+  <h3 class="section-title">Lịch giảng dạy hôm nay</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Môn học</th><th>Phòng</th>
+          <th>Thời gian</th><th>Sĩ số</th><th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in today_sessions %}
+        <tr>
+          <td>{{ session.subject.name }}</td>
+          <td>{{ session.room }}</td>
+          <td>{{ session.start_time|time:"H:i" }} – {{ session.end_time|time:"H:i" }}</td>
+          <td>{{ session.enrolled_count }}</td>
+          <td>
+            <span class="badge badge-{{ session.status_color }}">
+              {{ session.get_status_display }}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty-row">Không có buổi học hôm nay</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script src="{% static 'js/dashboard.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Hồ sơ{% endblock %}
+{% block content %}
+<style>
+.profile-wrap{max-width:560px;margin:2rem auto}
+.profile-title{font-size:18px;font-weight:600;margin-bottom:1.5rem;color:#1a1a1a}
+.avatar-big{width:72px;height:72px;border-radius:50%;background:#059669;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;color:#fff;margin-bottom:1.25rem}
+.card{border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;background:#fff;margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:600;letter-spacing:.06em;color:#6b7280;text-transform:uppercase;margin-bottom:1.25rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:13px;color:#374151}
+.field input{height:38px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;font-size:14px;color:#111;outline:none}
+.field input:focus{border-color:#059669;box-shadow:0 0 0 3px #d1fae5}
+.field input[readonly]{background:#f9fafb;color:#6b7280;cursor:not-allowed}
+.badge-role{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;background:#d1fae5;color:#065f46;margin-bottom:1.5rem}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:.5rem}
+.btn-save{padding:9px 22px;font-size:13px;border:none;border-radius:8px;background:#059669;color:#fff;cursor:pointer;font-weight:500}
+.btn-save:hover{background:#047857}
+.alert-success{padding:10px 14px;border-radius:8px;background:#d1fae5;color:#065f46;font-size:13px;margin-bottom:1rem}
+</style>
+
+<div class="profile-wrap">
+  <div class="profile-title">Hồ sơ cá nhân</div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert-success">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="avatar-big">
+    {{ request.user.first_name|first }}{{ request.user.last_name|first }}
+  </div>
+  <div class="badge-role">Giảng viên</div>
+
+  <form method="POST">
+    {% csrf_token %}
+    <div class="card">
+      <div class="card-title">Thông tin cá nhân</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Họ</label>
+          <input type="text" name="last_name" value="{{ request.user.last_name }}" />
+        </div>
+        <div class="field">
+          <label>Tên</label>
+          <input type="text" name="first_name" value="{{ request.user.first_name }}" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ request.user.email }}" />
+      </div>
+      {% if request.user.phone %}
+      <div class="field">
+        <label>Số điện thoại</label>
+        <input type="text" name="phone" value="{{ request.user.phone }}" />
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Thông tin tài khoản</div>
+      <div class="field">
+        <label>Tên đăng nhập</label>
+        <input type="text" value="{{ request.user.username }}" readonly />
+      </div>
+      <div class="field">
+        <label>Mã giảng viên</label>
+        <input type="text" value="{{ request.user.username }}" readonly />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn-save">💾 Lưu thay đổi</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

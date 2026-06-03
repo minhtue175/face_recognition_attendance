@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Điểm danh</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body class="dashboard-page">
+
+{% include 'accounts/sidebar_teacher.html' %}
+
+<main class="main-content">
+  <div style="display:flex; gap:24px; align-items:flex-start;">
+
+    <!-- Cột trái: chọn buổi học -->
+    <div style="width:220px; flex-shrink:0;">
+      <p style="font-size:13px; color:#888; margin-bottom:8px;">Buổi học</p>
+      <select id="session-select" onchange="changeSession(this.value)"
+              style="width:100%; padding:9px 12px; border:1px solid #ddd;
+                     border-radius:8px; font-size:13px; margin-bottom:16px;">
+        <option value="">-- Chọn buổi học --</option>
+        {% for s in sessions %}
+        <option value="{{ s.id }}"
+          {% if selected_session.id == s.id %}selected{% endif %}>
+          {{ s.class_group.subject.name }} — {{ s.room }}
+        </option>
+        {% endfor %}
+      </select>
+
+      {% if selected_session %}
+      <!-- Stats -->
+      <div class="stat-card" style="margin-bottom:12px;">
+        <p style="font-size:12px; color:#888;">Tổng / Có mặt</p>
+        <p style="font-size:24px; font-weight:700; color:#185FA5;">
+          {{ present }} / {{ total }}
+        </p>
+        <!-- Progress bar -->
+        <div style="background:#eee; border-radius:4px; height:6px; margin:8px 0 4px;">
+          <!--<div style="background:#185FA5; width:{{ rate }}%;
+                      border-radius:4px; height:6px;"></div>-->
+          <div class="progress-bar"
+              style="width: {{ rate }}%">
+          </div>
+          
+        </div>
+        <p style="font-size:12px; color:#185FA5;">{{ rate }}% tham dự</p>
+      </div>
+
+      <!-- Actions -->
+      <button onclick="markAll('present')" class="btn-action btn-present">
+        ✓ Tất cả có mặt
+      </button>
+      <button onclick="markAll('absent')" class="btn-action btn-absent"
+              style="margin-top:8px;">
+        ✕ Tất cả vắng
+      </button>
+      <button onclick="saveAttendance()" class="btn-action btn-save"
+              style="margin-top:16px;">
+        💾 Lưu kết quả
+      </button>
+      <button onclick="exportExcel()" class="btn-action btn-export"
+              style="margin-top:8px;">
+        📄 Xuất Excel
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Cột phải: bảng điểm danh -->
+    <div style="flex:1;">
+      {% if selected_session %}
+      <h2 style="font-size:16px; font-weight:600; margin-bottom:16px;">
+        Điểm danh: {{ selected_session.class_group.subject.name }}
+        — {{ selected_session.date|date:"d/m/Y" }}
+      </h2>
+
+      <div class="table-wrap">
+        <table class="data-table" id="attendance-table">
+          <thead>
+            <tr>
+              <th>Mã SV</th>
+              <th>Họ tên</th>
+              <th>Lớp CB</th>
+              <th>Điểm danh</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in students_data %}
+            <tr data-student-id="{{ item.student.id }}">
+              <td>{{ item.student.username }}</td>
+              <td>{{ item.student.get_full_name }}</td>
+              <td>{{ item.student.class_code|default:"—" }}</td>
+              <td>
+                <div class="status-toggle" data-status="{{ item.status }}">
+                  <button class="toggle-btn {% if item.status == 'present' %}active-present{% endif %}"
+                          onclick="toggleStatus(this, 'present')">Có mặt</button>
+                  <button class="toggle-btn {% if item.status == 'absent' %}active-absent{% endif %}"
+                          onclick="toggleStatus(this, 'absent')">Vắng</button>
+                  <button class="toggle-btn {% if item.status == 'late' %}active-late{% endif %}"
+                          onclick="toggleStatus(this, 'late')">Đi trễ</button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="empty-row">Chưa có sinh viên trong lớp</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center; padding:4rem; color:#bbb;">
+        Chọn buổi học để bắt đầu điểm danh
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</main>
+
+<style>
+.progress-bar{
+    background:#185FA5;
+    border-radius:4px;
+    height:6px;
+}
+.btn-action { width:100%; padding:9px; border-radius:8px; border:1px solid #ddd;
+              background:#fff; font-size:13px; cursor:pointer; text-align:left; }
+.btn-present { border-color:#3B6D11; color:#3B6D11; }
+.btn-absent  { border-color:#A32D2D; color:#A32D2D; }
+.btn-save    { background:#185FA5; color:#fff; border-color:#185FA5; font-weight:600; }
+.btn-export  { color:#555; }
+.status-toggle { display:flex; gap:6px; }
+.toggle-btn  { padding:4px 10px; border-radius:20px; border:1px solid #ddd;
+               background:#fff; font-size:11px; cursor:pointer; }
+.active-present { background:#EAF3DE; color:#3B6D11; border-color:#3B6D11; font-weight:600; }
+.active-absent  { background:#FCEBEB; color:#A32D2D; border-color:#A32D2D; font-weight:600; }
+.active-late    { background:#FAEEDA; color:#854F0B; border-color:#854F0B; font-weight:600; }
+</style>
+
+<script>
+const SESSION_ID = "{{ selected_session.id|default:'' }}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+
+function changeSession(id) {
+    if (id) window.location.href = '?session_id=' + id;
+}
+
+function toggleStatus(btn, status) {
+    const wrap = btn.closest('.status-toggle');
+    wrap.querySelectorAll('.toggle-btn').forEach(b => {
+        b.className = 'toggle-btn';
+    });
+    btn.classList.add('active-' + status);
+    wrap.dataset.status = status;
+    updateStats();
+}
+
+function markAll(status) {
+    document.querySelectorAll('.status-toggle').forEach(wrap => {
+        wrap.querySelectorAll('.toggle-btn').forEach(b => b.className = 'toggle-btn');
+        const btn = wrap.querySelector(`[onclick*="${status}"]`);
+        if (btn) btn.classList.add('active-' + status);
+        wrap.dataset.status = status;
+    });
+    updateStats();
+}
+
+function updateStats() {
+    const total   = document.querySelectorAll('tr[data-student-id]').length;
+    const present = document.querySelectorAll('.status-toggle[data-status="present"]').length;
+    const rate    = total > 0 ? Math.round(present / total * 100) : 0;
+    // Cập nhật hiển thị nếu cần — đơn giản reload sau khi save
+}
+
+function saveAttendance() {
+    const rows = document.querySelectorAll('tr[data-student-id]');
+    const records = [];
+    rows.forEach(row => {
+        records.push({
+            student_id: row.dataset.studentId,
+            status: row.querySelector('.status-toggle').dataset.status
+        });
+    });
+
+    fetch('/api/attendance/save/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+        },
+        body: JSON.stringify({ session_id: SESSION_ID, records })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            alert('Lưu thành công ' + data.saved + ' sinh viên!');
+            location.reload();
+        } else {
+            alert('Lỗi: ' + data.error);
+        }
+    });
+}
+
+function exportExcel() {
+    alert('Tính năng xuất Excel sẽ được thêm sau!');
+}
+</script>
+</body>
+</html>

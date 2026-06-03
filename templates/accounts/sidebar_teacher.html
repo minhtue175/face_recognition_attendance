@@ -1,0 +1,29 @@
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-user">
+    <div class="avatar">
+      {{ user.first_name|first }}{{ user.last_name|first }}
+    </div>
+
+    <div>
+      <p class="user-name">{{ user.get_full_name }}</p>
+      <p class="user-role">Giảng viên</p>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+
+    <a href="{% url 'dashboard' %}" class="nav-item">
+      📊 Tổng quan
+    </a>
+
+    <a href="{% url 'attendance' %}" class="nav-item active">
+      ✅ Điểm danh
+    </a>
+
+    <a href="{% url 'logout' %}" class="nav-item nav-logout">
+      🚪 Đăng xuất
+    </a>
+
+  </nav>
+</aside>

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Import danh sách lớp{% endblock %}
+
+{% block content %}
+<style>
+.import-wrap{max-width:640px;margin:2rem auto;font-family:sans-serif}
+.import-title{font-size:18px;font-weight:600;margin-bottom:1.25rem;color:#1a1a1a}
+.card{border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;margin-bottom:1rem;background:#fff}
+.card-title{font-size:11px;font-weight:600;letter-spacing:.06em;color:#6b7280;text-transform:uppercase;margin-bottom:1rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;color:#374151}
+.field input{height:38px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;font-size:14px;color:#111;background:#fff;outline:none}
+.field input:focus{border-color:#059669;box-shadow:0 0 0 3px #d1fae5}
+.method-btns{display:flex;gap:8px;margin-bottom:1rem}
+.method-btn{display:flex;align-items:center;gap:6px;padding:7px 16px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;background:#fff;color:#374151;transition:all .15s}
+.method-btn.active{border-color:#059669;background:#ecfdf5;color:#065f46;font-weight:600}
+.drop-zone{border:1.5px dashed #d1d5db;border-radius:10px;padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;gap:8px;background:#f9fafb;cursor:pointer;transition:border-color .15s;text-align:center}
+.drop-zone:hover{border-color:#059669}
+.drop-icon{font-size:26px;color:#6b7280}
+.drop-text{font-size:13px;color:#6b7280}
+.drop-text a{color:#059669;text-decoration:none;font-weight:500}
+.drop-sub{font-size:12px;color:#9ca3af}
+.cols-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.col-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:12px;color:#6b7280}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem}
+.btn-cancel{padding:9px 20px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.btn-cancel:hover{background:#f3f4f6}
+.btn-confirm{padding:9px 20px;font-size:13px;border:none;border-radius:8px;background:#059669;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.btn-confirm:hover{background:#047857}
+textarea{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:10px;font-size:13px;color:#111;resize:vertical;font-family:monospace;outline:none}
+textarea:focus{border-color:#059669;box-shadow:0 0 0 3px #d1fae5}
+</style>
+
+<div class="import-wrap">
+  <div class="import-title">Import danh sách lớp</div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div style="padding:10px 14px;border-radius:8px;margin-bottom:1rem;
+                  background:{% if 'error' in msg.tags %}#fee2e2{% else %}#d1fae5{% endif %};
+                  color:{% if 'error' in msg.tags %}#991b1b{% else %}#065f46{% endif %};
+                  font-size:13px">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Thông tin lớp học -->
+    <div class="card">
+      <div class="card-title">Thông tin lớp học</div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div class="field">
+          <label>Môn học</label>
+          <input type="text" name="subject" placeholder="Lập trình Web" required />
+        </div>
+        <div class="field">
+          <label>Mã lớp</label>
+          <input type="text" name="class_code" placeholder="IT3040" required />
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div class="field">
+          <label>Phòng học</label>
+          <input type="text" name="room" placeholder="B204" />
+        </div>
+        <div class="field">
+          <label>Serial</label>
+          <input type="text" name="serial" placeholder="01" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Giờ bắt đầu</label>
+          <input type="time" name="start_time" value="07:30" />
+        </div>
+        <div class="field">
+          <label>Giờ kết thúc</label>
+          <input type="time" name="end_time" value="09:30" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Phương thức nhập -->
+    <div class="card">
+      <div class="card-title">Chọn phương thức nhập</div>
+      <div class="method-btns">
+        <button type="button" class="method-btn active" id="btn-excel" onclick="setMethod('excel')">
+          📄 File Excel
+        </button>
+        <button type="button" class="method-btn" id="btn-manual" onclick="setMethod('manual')">
+          ✏️ Nhập thủ công
+        </button>
+      </div>
+      <input type="hidden" name="method" id="method-input" value="excel" />
+
+      <div id="excel-area">
+        <div class="drop-zone" onclick="document.getElementById('excel-file').click()">
+          <div class="drop-icon">⬆</div>
+          <div class="drop-text" id="file-label">
+            Kéo thả file Excel vào đây hoặc <a>chọn file</a>
+          </div>
+          <div class="drop-sub">Hỗ trợ: .xlsx, .xls – tối đa 5MB</div>
+          <input id="excel-file" type="file" name="excel_file"
+                 accept=".xlsx,.xls" style="display:none" />
+        </div>
+        <div class="cols-row">
+          <span class="col-badge">⊞ CodeStudent</span>
+          <span class="col-badge">⊞ Name</span>
+          <span class="col-badge">⊞ Phone</span>
+          <span class="col-badge">⊞ BaseClass</span>
+        </div>
+      </div>
+
+      <div id="manual-area" style="display:none">
+        <textarea name="manual_input" rows="6"
+          placeholder="Mỗi dòng một sinh viên, cách nhau bởi dấu phẩy:&#10;SV001, Nguyễn Văn A, 0912345678, CNTT-01"></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a href="{% url 'class_list' %}" class="btn-cancel">Hủy</a>
+      <button type="submit" class="btn-confirm">✔ Xác nhận import</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function setMethod(m) {
+  document.getElementById('method-input').value = m;
+  document.getElementById('btn-excel').classList.toggle('active', m === 'excel');
+  document.getElementById('btn-manual').classList.toggle('active', m === 'manual');
+  document.getElementById('excel-area').style.display  = m === 'excel'  ? 'block' : 'none';
+  document.getElementById('manual-area').style.display = m === 'manual' ? 'block' : 'none';
+}
+
+document.getElementById('excel-file').addEventListener('change', function () {
+  if (this.files[0])
+    document.getElementById('file-label').innerHTML = '📎 <strong>' + this.files[0].name + '</strong>';
+});
+
+const zone = document.querySelector('.drop-zone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.borderColor = '#059669'; });
+zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    document.getElementById('excel-file').files = dt.files;
+    document.getElementById('file-label').innerHTML = '📎 <strong>' + f.name + '</strong>';
+  }
+});
+</script>
+{% endblock %}

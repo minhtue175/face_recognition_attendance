@@ -1,0 +1,50 @@
+ATTENDANCE_SYSTEM-MAIN/
+├── accounts/                 <-- App quản lý Users, Sinh viên, Giảng viên
+│   ├── migrations/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py             <-- Chứa models: Users, Lecturers, Students
+│   ├── urls.py
+│   └── views.py
+├── attendance/               <-- App quản lý Camera, Log AI, Lịch sử điểm danh
+│   ├── migrations/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py             <-- Chứa models: Cameras, Facelogs, AttendanceHistory
+│   ├── urls.py
+│   └── views.py
+├── classes/                  <-- App quản lý Lớp học và Cấu trúc Lớp - Sinh viên
+│   ├── migrations/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py             <-- Chứa models: Class, StudentClass
+│   ├── urls.py
+│   └── views.py
+├── attendance_project/       <-- Thư mục cấu hình cốt lõi của Django
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── settings.py           <-- Cấu hình kết nối SQL Server (SSMS) ở đây
+│   ├── urls.py
+│   └── wsgi.py
+├── core_ai/                  <-- Module xử lý nhận diện khuôn mặt & tracking
+│   ├── models/
+│   │   └── final_face_recognizer.pkl
+│   ├── __init__.py
+│   ├── attendance_logic.py
+│   ├── face_processor.py
+│   └── sort.py
+├── static/                   <-- File tĩnh (CSS, JS) phục vụ UI/UX
+│   ├── css/                  
+│   └── js/
+├── templates/                <-- Giao diện HTML của dự án
+│   ├── accounts/
+│   ├── attendance/
+│   ├── classes/
+│   └── base.html             <-- Layout gốc (set up style sáng, bo góc tại đây)
+├── .gitignore
+├── manage.py
+├── requirements.txt          <-- Chứa list thư viện cần cài
+└── structure.txt             <-- File bạn đang sửa

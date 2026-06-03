@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="max-width:800px; margin:auto">
+
+  <h2>Điểm danh — {{ session.class_group.subject.name }}</h2>
+  <p style="color:#888; font-size:13px">
+    {{ session.date|date:"d/m/Y" }} &nbsp;·&nbsp;
+    {{ session.room }} &nbsp;·&nbsp;
+    {{ session.start_time|time:"H:i" }} – {{ session.end_time|time:"H:i" }}
+  </p>
+
+  <form method="POST">
+    {% csrf_token %}
+    <table class="att-table" style="margin-top:1rem">
+      <thead>
+        <tr>
+          <th>Mã SV</th>
+          <th>Họ tên</th>
+          <th>Trạng thái</th>
+          <th>Giờ vào</th>
+          <th>Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.student.username }}</td>
+          <td>{{ row.student.get_full_name }}</td>
+          <td>
+            <select name="status_{{ row.student.id }}">
+              <option value="present" {% if row.record.status == 'present' %}selected{% endif %}>Có mặt</option>
+              <option value="absent"  {% if row.record.status == 'absent'  %}selected{% endif %}>Vắng</option>
+              <option value="late"    {% if row.record.status == 'late'    %}selected{% endif %}>Đi trễ</option>
+            </select>
+          </td>
+          <td>
+            <input type="time" name="checkin_{{ row.student.id }}"
+                   value="{{ row.record.checkin_time|time:'H:i'|default:'' }}" />
+          </td>
+          <td>
+            <input type="text" name="note_{{ row.student.id }}"
+                   value="{{ row.record.note|default:'' }}"
+                   placeholder="Ghi chú..." />
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="actions" style="margin-top:1rem">
+      <a href="{% url 'attendance' %}" class="btn-cancel">Hủy</a>
+      <button type="submit" class="btn-confirm">Lưu điểm danh</button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Lịch sử điểm danh{% endblock %}
+{% block content %}
+<style>
+.sv-layout{display:flex;min-height:calc(100vh - 0px);background:#f8f9fa}
+
+/* Sidebar sinh viên */
+.sv-sidebar{width:200px;min-width:200px;background:#fff;border-right:1px solid #e5e7eb;
+            padding:1.5rem 0;display:flex;flex-direction:column}
+.sv-avatar-wrap{display:flex;align-items:center;gap:10px;padding:0 1.25rem 1.25rem;
+                border-bottom:1px solid #e5e7eb}
+.sv-avatar{width:42px;height:42px;border-radius:50%;background:#059669;
+           display:flex;align-items:center;justify-content:center;
+           font-size:14px;font-weight:600;color:#fff;flex-shrink:0}
+.sv-name{font-size:13px;font-weight:600;color:#111}
+.sv-id{font-size:11px;color:#6b7280;margin-top:2px}
+.sv-nav{padding:1rem 0}
+.sv-nav a{display:flex;align-items:center;gap:8px;padding:9px 1.25rem;
+          font-size:13px;color:#6b7280;text-decoration:none;
+          border-left:2px solid transparent;transition:all .15s}
+.sv-nav a:hover{color:#111;background:#f9fafb}
+.sv-nav a.active{color:#059669;font-weight:600;border-left-color:#059669;background:#f0fdf4}
+.sv-nav .nav-icon{font-size:15px}
+
+/* Main */
+.sv-main{flex:1;padding:2rem}
+
+/* Stats */
+.sv-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.75rem}
+.sv-stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+         padding:1.25rem;text-align:center}
+.sv-stat-num{font-size:28px;font-weight:700;color:#1a1a1a}
+.sv-stat-label{font-size:12px;color:#6b7280;margin-top:4px}
+
+/* Table */
+.sv-section-title{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:1rem}
+.sv-table-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#fff}
+th{padding:10px 16px;text-align:left;font-size:12px;font-weight:500;
+   color:#6b7280;border-bottom:1px solid #e5e7eb}
+td{padding:11px 16px;border-bottom:1px solid #f3f4f6;color:#111;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.subject-name{font-weight:500;font-size:13px}
+.dash{color:#9ca3af}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.badge.present{background:#d1fae5;color:#065f46}
+.badge.absent{background:#fee2e2;color:#991b1b}
+.badge.late{background:#fef3c7;color:#92400e}
+.empty-row{text-align:center;padding:2.5rem;color:#9ca3af}
+</style>
+
+<div class="sv-layout">
+
+  <!-- Sidebar -->
+  <aside class="sv-sidebar">
+    <div class="sv-avatar-wrap">
+      <div class="sv-avatar">
+        {{ request.user.first_name|first }}{{ request.user.last_name|first }}
+      </div>
+      <div>
+        <div class="sv-name">{{ request.user.get_full_name }}</div>
+        <div class="sv-id">{{ request.user.username }}</div>
+      </div>
+    </div>
+    <nav class="sv-nav">
+      <a href="{% url 'student_history' %}"
+         class="{% if request.resolver_match.url_name == 'student_history' %}active{% endif %}">
+        <span class="nav-icon">📋</span> Lịch sử điểm danh
+      </a>
+      <a href="{% url 'profile' %}"
+         class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+        <span class="nav-icon">👤</span> Hồ sơ
+      </a>
+      <a href="{% url 'logout' %}">
+        <span class="nav-icon">🚪</span> Đăng xuất
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="sv-main">
+
+    <!-- Thống kê -->
+    <div class="sv-stats">
+      <div class="sv-stat">
+        <div class="sv-stat-num">{{ stats.total }}</div>
+        <div class="sv-stat-label">Tổng buổi</div>
+      </div>
+      <div class="sv-stat">
+        <div class="sv-stat-num" style="color:#059669">{{ stats.present }}</div>
+        <div class="sv-stat-label">Có mặt</div>
+      </div>
+      <div class="sv-stat">
+        <div class="sv-stat-num" style="color:#ef4444">{{ stats.absent }}</div>
+        <div class="sv-stat-label">Vắng mặt</div>
+      </div>
+    </div>
+
+    <!-- Bảng lịch sử -->
+    <div class="sv-section-title">Lịch sử điểm danh</div>
+    <div class="sv-table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Môn học</th>
+            <th>Ngày</th>
+            <th>Phòng</th>
+            <th>Giờ vào</th>
+            <th>Kết quả</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td><span class="subject-name">{{ r.session.class_group.subject.name }}</span></td>
+            <td>{{ r.session.date|date:"d/m/Y" }}</td>
+            <td>{{ r.session.room }}</td>
+            <td>
+              {% if r.checkin_time %}
+                {{ r.checkin_time|time:"H:i" }}
+              {% else %}
+                <span class="dash">—</span>
+              {% endif %}
+            </td>
+            <td><span class="badge {{ r.status }}">{{ r.get_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="empty-row">Chưa có dữ liệu điểm danh.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+{% endblock %}
