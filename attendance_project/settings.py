@@ -88,7 +88,7 @@ DATABASES = {
     
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pbl5_attendance',  
+        'NAME': 'pbl5',  
         'USER': 'root',             
         'PASSWORD': '',             
         'HOST': 'localhost',        
