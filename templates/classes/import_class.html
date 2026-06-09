@@ -83,6 +83,28 @@ textarea:focus{border-color:#059669;box-shadow:0 0 0 3px #d1fae5}
           <input type="time" name="end_time" value="09:30" />
         </div>
       </div>
+      <div class="grid-2" style="margin-top:12px">
+        <div class="field">
+          <label>Thứ học</label>
+          <select name="day_of_week">
+            <option value="">-- Chọn thứ --</option>
+            <option value="Monday">Thứ Hai</option>
+            <option value="Tuesday">Thứ Ba</option>
+            <option value="Wednesday">Thứ Tư</option>
+            <option value="Thursday">Thứ Năm</option>
+            <option value="Friday">Thứ Sáu</option>
+            <option value="Saturday">Thứ Bảy</option>
+            <option value="Sunday">Chủ Nhật</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Khoảng ngày</label>
+          <div style="display:flex;gap:6px">
+            <input type="date" name="start_date" />
+            <input type="date" name="end_date" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Phương thức nhập -->
@@ -109,16 +131,13 @@ textarea:focus{border-color:#059669;box-shadow:0 0 0 3px #d1fae5}
                  accept=".xlsx,.xls" style="display:none" />
         </div>
         <div class="cols-row">
-          <span class="col-badge">⊞ CodeStudent</span>
-          <span class="col-badge">⊞ Name</span>
-          <span class="col-badge">⊞ Phone</span>
-          <span class="col-badge">⊞ BaseClass</span>
+          <span class="col-badge">⊞ CodeStudent (mỗi dòng 1 mã)</span>
         </div>
       </div>
 
       <div id="manual-area" style="display:none">
         <textarea name="manual_input" rows="6"
-          placeholder="Mỗi dòng một sinh viên, cách nhau bởi dấu phẩy:&#10;SV001, Nguyễn Văn A, 0912345678, CNTT-01"></textarea>
+          placeholder="Mỗi dòng một mã sinh viên (chỉ cần StudentCode):&#10;SV001&#10;SV002"></textarea>
       </div>
     </div>
 

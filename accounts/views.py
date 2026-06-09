@@ -7,7 +7,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from .forms import RegisterForm
 
 
 # ─── Login ───────────────────────────────────────────────────
@@ -166,25 +165,4 @@ def profile(request):
 
     return render(request, 'accounts/profile.html')
 
-def register_view(request):
-    
-    if request.method == 'POST':
-        
-        form = RegisterForm(request.POST)
-        
-        if form.is_valid():
-            
-            user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
-            user.save()
-            messages.success(request, "Đăng ký thành công")
-            return redirect('login')
-        
-    else:
-        form = RegisterForm()
-
-    return render(
-        request,
-        'accounts/register.html',
-        {'form': form}
-    )
+# Registration has been disabled: no public register view provided.

@@ -62,20 +62,4 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #F7F6F2; 
 .badge-blue   { background: #E6F1FB; color: #185FA5; }
 
 
-.register-link{
-    display: block;
-    width: 100%;
-    margin-top: 16px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.register-link a{
-    color:#2563eb;
-    text-decoration:none;
-    font-weight:600;
-}
-
-.register-link a:hover{
-    text-decoration:underline;
-}
+/* Register link removed when registration is disabled */
