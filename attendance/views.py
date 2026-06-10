@@ -1,6 +1,7 @@
 import cv2
 import json
 import numpy as np
+import time
 from datetime import date
 from django.utils import timezone
 from django.shortcuts import render, redirect
@@ -10,37 +11,24 @@ from django.db.models import Count, Q
 import os
 from django.conf import settings
 
-# Import models từ DB của bạn
+
 from classes.models import Class, StudentClass
 from attendance.models import AttendanceHistory, Facelogs
 from accounts.models import Students, Lecturers
 
-# Import AI từ thư mục core_ai
-from core_ai.face_processor import FaceProcessor
-from core_ai.attendance_logic import AttendanceManager
+# TÍCH HỢP HỆ THỐNG AI MỚI (Từ file main1.py chứa luồng ngầm và Liveness)
+from main1 import AttendanceSystem
 
-
-# Khởi tạo AI Model ở dạng biến toàn cục
-print("Đang nạp mô hình AI...")
+print("Đang nạp hệ thống AI bất đồng bộ (Liveness & Tracking)...")
 try:
-    # Dùng la bàn BASE_DIR để trỏ chính xác vào thư mục gốc của project
-    model_path = os.path.join(settings.BASE_DIR, "core_ai", "models", "final_face_recognizer.pkl")
-    print(f"Đang tìm mô hình tại: {model_path}") # In ra để kiểm tra
-    
-    processor = FaceProcessor(model_path)
-    manager = AttendanceManager()
+    ai_handler = AttendanceSystem()
     print("✅ NẠP MÔ HÌNH THÀNH CÔNG!")
 except Exception as e:
     print(f"❌ LỖI NẠP MÔ HÌNH RỒI: {e}")
-    processor = None
-    manager = None
+    ai_handler = None
 
-# MỚI THÊM: Biến toàn cục để lưu tạm những người vừa được nhận diện
-recent_recognitions = set()
 
-# ==========================================
-# 1. HÀM HIỂN THỊ GIAO DIỆN CHÍNH (ĐIỂM DANH)
-# ==========================================
+
 @login_required
 def attendance_page(request):
     """Render ra trang điểm danh, lấy dữ liệu lớp học và sinh viên từ DB"""
@@ -107,9 +95,7 @@ def attendance_page(request):
     return render(request, 'attendance/attendance_page.html', context)
 
 
-# ==========================================
-# 2. HÀM XỬ LÝ API LƯU ĐIỂM DANH TỪ WEB
-# ==========================================
+
 def save_attendance(request, session_id=None):
     """Hứng dữ liệu JSON từ nút 'Lưu kết quả' và lưu xuống MySQL"""
     if request.method == 'POST':
@@ -126,6 +112,10 @@ def save_attendance(request, session_id=None):
             saved_count = 0
             
             for record in records:
+                # BẢO MẬT: Bỏ qua nếu là hình giả (FAKE)
+                if record.get('liveness') == False:
+                    continue 
+
                 student_id = record.get('student_id')
                 status = record.get('status')
                 
@@ -150,93 +140,67 @@ def save_attendance(request, session_id=None):
     return JsonResponse({'ok': False, 'error': 'Method không hợp lệ'})
 
 
-# ==========================================
-# 3. HÀM XỬ LÝ LUỒNG CAMERA & AI
-# ==========================================
+
 def generate_frames():
-    """Đọc camera, xử lý nhận diện AI và đẩy stream lên web"""
-    global recent_recognitions # MỚI THÊM: Gọi biến toàn cục
+    """Đọc camera và dùng luồng ngầm AI để đẩy stream lên web mượt mà"""
+    global ai_handler
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
 
     while True:
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret or frame is None:
+            time.sleep(0.01)
+            continue
             
-        names_in_this_frame = set()             
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # 1. Phát hiện mặt
-        if processor:
-            faces = processor.detect_faces(rgb_frame)
-            detections = np.array([[f['box'][0], f['box'][1], f['box'][0]+f['box'][2], f['box'][1]+f['box'][3], f['confidence']] for f in faces])
+        # 1. Bơm frame vào cho AI chạy ngầm và lấy tọa độ hộp vẽ cũ/mới nhất ra luôn
+        if ai_handler is not None:
+            draw_data = ai_handler.process_frame_async(frame)
         else:
-            detections = []
-            
-        if len(detections) == 0: 
-            detections = np.empty((0, 5))
-        
-        # 2. Tracking
-        if manager:
-            tracked_objs = manager.update_tracker(detections)
-        else:
-            tracked_objs = []
-        
-        # 3. Xử lý logic từng khuôn mặt
-        for obj in tracked_objs:
-            x1, y1, x2, y2, track_id = [int(v) for v in obj]
-            
-            if manager.is_new_id(track_id):
-                face_crop = rgb_frame[max(0, y1):y2, max(0, x1):x2]
-                if face_crop.size != 0:
-                    name = processor.get_identity(face_crop)
-                else:
-                    name = "Unknown"
-            else:
-                name = manager.active_faces.get(track_id, "Unknown")
-            
-            stt, identity = manager.get_attendance_info(name, track_id)
-            
-            if identity != "Unknown":
-                # MỚI THÊM: Ném tên sinh viên vào giỏ nếu nhận diện được
-                recent_recognitions.add(identity)
+            draw_data = []
 
-                if identity in names_in_this_frame:
-                    display_text = f"WARN: Duplicate {identity}"
-                    color = (0, 0, 255) 
-                else:
-                    display_text = f"ID: {stt}. {identity}"
-                    color = (0, 255, 0) 
-                    names_in_this_frame.add(identity) 
-            else:
-                display_text = "Unknown"
-                color = (0, 165, 255) 
-            
+        # 2. Vẽ ô nhận diện lên hình
+        for x1, y1, x2, y2, text, color in draw_data:
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, display_text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            cv2.putText(frame, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
-        # 4. Mã hóa ảnh
-        ret, buffer = cv2.imencode('.jpg', frame)
+        # 3. Mã hóa ảnh và trả về cho Web
+        ret_enc, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ret_enc:
+            continue
+
         frame_bytes = buffer.tobytes()
         
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        
+        # Cầm nhịp FPS để luồng Web không bị quá tải
+        time.sleep(0.03)
 
 def video_feed(request):
     """API endpoint để web gọi stream"""
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
-# MỚI THÊM: API Trả về danh sách khuôn mặt cho HTML Radar
+# TÍCH HỢP RADAR BẮT LIVENESS THẬT/GIẢ
 def get_recent_recognitions(request):
-    """API trả về danh sách các khuôn mặt vừa được AI nhận diện"""
-    global recent_recognitions
-    faces = list(recent_recognitions)
-    recent_recognitions.clear() # Đọc xong dọn sạch để lần sau không trùng
+    """API trả về danh sách các khuôn mặt vừa được AI nhận diện kèm Thật/Giả"""
+    global ai_handler
+    faces = []
+    try:
+        if ai_handler is not None:
+            # Quét các mặt đang có trong luồng Tracker của AI
+            for tid, state in list(ai_handler.track_states.items()):
+                name = state.get('name')
+                is_real = state.get('is_real', True)
+                
+                # Chỉ xuất ra những mã Sinh viên hợp lệ
+                if name and name not in (None, 'Unknown', 'Detecting...'):
+                    faces.append({'code': name, 'is_real': bool(is_real)})
+    except Exception:
+        pass
+    
     return JsonResponse({'faces': faces})
 
-# ==========================================
-# 4. CÁC HÀM PHỤ (Lịch sử)
-# ==========================================
+
 
 @login_required
 def student_history(request):
@@ -251,7 +215,7 @@ def student_history(request):
             Student=student_profile
         ).select_related('Class').order_by('-AttendanceDate', '-CheckInTime')
 
-        # Thống kê tổng quan (ĐÃ CẬP NHẬT THÊM TRẠNG THÁI LATE)
+        # Thống kê tổng quan (CÓ TRẠNG THÁI LATE)
         stats = AttendanceHistory.objects.filter(Student=student_profile).aggregate(
             total=Count('AttendanceID'),
             present=Count('AttendanceID', filter=Q(Status='present')),
