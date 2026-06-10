@@ -9,7 +9,7 @@ import torch
 
 from core_ai.face_processor import FaceProcessor
 from core_ai.attendance_logic import AttendanceManager
-from core_ai.MiniFASNet import MiniFASNetV2
+from core_ai.minifasnet import MiniFASNetV2
 from core_ai.generate_patches import CropImage
 
 
