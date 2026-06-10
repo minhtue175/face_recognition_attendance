@@ -23,6 +23,33 @@
 .active-present { background:#EAF3DE; color:#3B6D11; border-color:#3B6D11; font-weight:600; }
 .active-absent  { background:#FCEBEB; color:#A32D2D; border-color:#A32D2D; font-weight:600; }
 .active-late    { background:#FAEEDA; color:#854F0B; border-color:#854F0B; font-weight:600; }
+
+/* MỚI THÊM: CSS cho Modal Popup điểm danh thay thế alert() */
+.modern-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10000; opacity: 0; pointer-events: none; transition: 0.25s ease;
+}
+.modern-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modern-modal {
+    background: #fff; padding: 32px; border-radius: 16px; width: 360px;
+    text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    transform: scale(0.8); transition: 0.25s ease;
+}
+.modern-modal-overlay.active .modern-modal { transform: scale(1); }
+.modal-icon {
+    width: 56px; height: 56px; border-radius: 50%; display: flex; 
+    align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 24px;
+}
+.modal-icon.success { background: #e6f4ea; color: #137333; }
+.modal-icon.error { background: #fce8e6; color: #c5221f; }
+.btn-modal-ok {
+    margin-top: 20px; width: 100%; padding: 10px; border: none;
+    border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;
+    background: #185FA5; color: #fff; transition: 0.2s;
+}
+.btn-modal-ok:hover { filter: brightness(0.9); }
 </style>
 
 <div style="display:flex; gap:24px; align-items:flex-start; width: 100%; padding: 24px;">
@@ -124,10 +151,22 @@
   </div>
 </div>
 
+<div id="modern-modal-container" class="modern-modal-overlay">
+    <div class="modern-modal">
+        <div id="modal-icon-box" class="modal-icon success">✓</div>
+        <h3 id="modal-title" style="margin: 0 0 10px 0; font-size: 18px; color: #333;">Thành công</h3>
+        <p id="modal-desc" style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">Dữ liệu đã được cập nhật thành công xuống cơ sở dữ liệu.</p>
+        <button onclick="closeModernModal()" class="btn-modal-ok">Xác nhận</button>
+    </div>
+</div>
+
 <script>
-  
+
 const SESSION_ID = "{{ selected_session.ClassID|default:'' }}";
 const CSRF_TOKEN = "{{ csrf_token }}";
+
+// Biến quản lý trạng thái tải lại sau khi bấm popup
+let shouldReloadOnClose = false;
 
 function changeSession(id) {
     if (id) window.location.href = '?session_id=' + id;
@@ -135,9 +174,7 @@ function changeSession(id) {
 
 function toggleStatus(btn, status) {
     const wrap = btn.closest('.status-toggle');
-    wrap.querySelectorAll('.toggle-btn').forEach(b => {
-        b.className = 'toggle-btn';
-    });
+    wrap.querySelectorAll('.toggle-btn').forEach(b => { b.className = 'toggle-btn'; });
     btn.classList.add('active-' + status);
     wrap.dataset.status = status;
     updateStats();
@@ -167,6 +204,24 @@ function updateStats() {
     if (progressBar) progressBar.style.width = `${rate}%`;
 }
 
+// MỚI THÊM: Hàm điều khiển mở Popup Modal xịn thay alert()
+function triggerPopup(title, desc, type = 'success', autoReload = false) {
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-desc').innerText = desc;
+    const iconBox = document.getElementById('modal-icon-box');
+    iconBox.className = `modal-icon ${type}`;
+    iconBox.innerText = type === 'success' ? '✓' : '✕';
+    shouldReloadOnClose = autoReload;
+    document.getElementById('modern-modal-container').classList.add('active');
+}
+
+function closeModernModal() {
+    document.getElementById('modern-modal-container').classList.remove('active');
+    if (shouldReloadOnClose) {
+        location.reload();
+    }
+}
+
 function saveAttendance() {
     const rows = document.querySelectorAll('tr[data-student-id]');
     const records = [];
@@ -174,7 +229,7 @@ function saveAttendance() {
         records.push({
             student_id: row.dataset.studentId,
             status: row.querySelector('.status-toggle').dataset.status,
-            liveness: row.dataset.liveness === 'false' ? false : true // gửi kèm trạng thái liveness
+            liveness: row.dataset.liveness === 'false' ? false : true
         });
     });
 
@@ -190,59 +245,59 @@ function saveAttendance() {
     .then(r => r.json())
     .then(data => {
         if (data.ok) {
-            alert('Lưu thành công ' + data.saved + ' sinh viên!');
-            location.reload();
+            // CẬP NHẬT: Thay alert thô sơ bằng Popup Modal bo góc mượt mà
+            triggerPopup('Điểm danh thành công', 'Hệ thống đã lưu điểm danh của ' + data.saved + ' .', 'success', true);
         } else {
-            alert('Lỗi: ' + data.error);
+            triggerPopup('Lưu thất bại', 'Lỗi từ hệ thống: ' + data.error, 'error', false);
         }
     })
     .catch(err => {
-        alert('Đã gửi yêu cầu lưu, vui lòng kiểm tra lại backend API!');
+        triggerPopup('Lỗi đường truyền', 'Không thể kết nối đến API Server Django.', 'error', false);
     });
-
-  }
+}
 
 
 
 // ===============================================
-// RADAR TỰ ĐỘNG QUÉT AI & TICK CÓ MẶT (Đã fix Object và quét theo tên)
+// RADAR AI & TICK CÓ MẶT (Đã fix bóc tách Object và tìm linh hoạt)
 // ===============================================
 setInterval(() => {
-    if (!SESSION_ID) return; // Nếu chưa chọn lớp thì không quét
+    if (!SESSION_ID) return; 
 
     fetch('{% url "get_recognitions" %}')
     .then(res => res.json())
     .then(data => {
         if (data.faces && data.faces.length > 0) {
           data.faces.forEach(item => {
-            const aiKeyword = item.code.toLowerCase(); // Tên hoặc mã do AI nhả ra
+            const aiKeyword = item.code.toLowerCase(); 
             const isReal = item.is_real;
             
-            // Tìm dòng sinh viên khớp Mã hoặc khớp một phần Tên
+
             let targetRow = null;
+
             document.querySelectorAll('tr[data-student-id]').forEach(r => {
                 const code = (r.dataset.studentCode || '').toLowerCase();
                 const name = (r.dataset.studentName || '').toLowerCase();
-                
-                // Trình duyệt sẽ quét: Nếu AI xuất "tue", nó tìm hàng có Mã "tue" hoặc Tên chứa "tue"
+
+
                 if (code === aiKeyword || name.includes(aiKeyword)) {
                     targetRow = r;
                 }
             });
 
             if (targetRow) {
-              // Đánh dấu trạng thái liveness vào row để bảo mật lúc lưu xuống DB
+
               targetRow.dataset.liveness = isReal ? 'true' : 'false';
               const presentBtn = targetRow.querySelector('.toggle-btn[onclick*="present"]');
               
               if (isReal) {
-                // Nếu người thật: Tự động bấm "Có mặt" và đổi nền hàng thành Xanh Lá nhạt
+
                 if (presentBtn && !presentBtn.classList.contains('active-present')) {
                   toggleStatus(presentBtn, 'present');
                 }
                 targetRow.style.background = '#f4fcf5'; 
               } else {
-                // Nếu ảnh giả (Cầm điện thoại): Đổi nền hàng thành Đỏ nhạt để cảnh báo giảng viên
+
                 targetRow.style.background = '#fff0f0'; 
               }
             }
@@ -250,6 +305,6 @@ setInterval(() => {
         }
     })
     .catch(err => console.log("Đang chờ AI Radar...", err));
-}, 2000); // 2000ms = Cứ 2 giây hỏi Backend 1 lần
+}, 2000);
 </script>
 {% endblock %}

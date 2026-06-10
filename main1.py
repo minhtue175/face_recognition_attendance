@@ -103,8 +103,7 @@ class AttendanceSystem:
         return results
 
     def _ai_worker(self):
-        """Luồng Worker ngầm xử lý tuần tự ảnh từ Queue gửi sang"""
-        tick = 0
+        """Luồng xử lý AI ngầm có tích hợp Cooldown Liveness"""
         while self._running:
             try:
                 bgr_frame = self._frame_q.get(timeout=0.5)
@@ -112,99 +111,101 @@ class AttendanceSystem:
                 continue
 
             try:
-                tick += 1
-                self._ai_tick = tick
+                
                 h, w = bgr_frame.shape[:2]
-
-                small     = cv2.resize(bgr_frame, None, fx=self.PROCESS_SCALE, fy=self.PROCESS_SCALE)
+                small = cv2.resize(bgr_frame, None, fx=self.PROCESS_SCALE, fy=self.PROCESS_SCALE)
                 rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-                sx = w / small.shape[1]
-                sy = h / small.shape[0]
+                sx, sy = w / small.shape[1], h / small.shape[0]
 
                 faces = self.processor.detect_faces(rgb_small)
-                if faces:
-                    detections = np.array([
-                        [f['box'][0] * sx, f['box'][1] * sy, (f['box'][0] + f['box'][2]) * sx, (f['box'][1] + f['box'][3]) * sy, f['confidence']]
-                        for f in faces
-                    ])
-                else:
-                    detections = np.empty((0, 5))
-
+                detections = np.array([[f['box'][0]*sx, f['box'][1]*sy, (f['box'][0]+f['box'][2])*sx, (f['box'][1]+f['box'][3])*sy, f['confidence']] for f in faces]) if faces else np.empty((0, 5))
                 tracked = self.manager.update_tracker(detections)
 
                 current_time = time.time()
-                active_tids  = {int(obj[4]) for obj in tracked}
+                active_tids = {int(obj[4]) for obj in tracked}
+                
+                # Dọn dẹp bộ nhớ
                 for tid in list(self.track_states.keys()):
-                    if tid not in active_tids:
-                        self.track_states.pop(tid, None)
+                    if tid not in active_tids: self.track_states.pop(tid, None)
                 for tid in list(self.manager.active_faces.keys()):
-                    if tid not in active_tids:
-                        self.manager.active_faces.pop(tid, None)
+                    if tid not in active_tids: self.manager.active_faces.pop(tid, None)
 
-                pending_tids   = []
-                pending_bboxes = []
-                pending_crops  = {}   
-                rgb_full       = None
+                # ========================================================
+                # THIẾT LẬP COOLDOWN Ở ĐÂY (Đơn vị: Giây)
+                LIVENESS_COOLDOWN = 3.0  # <--- BẠN CÓ THỂ THAY ĐỔI SỐ 3 NÀY ĐỂ TEST
+                # ========================================================
+
+                pending_tids, pending_crops = [], {}               # Dành cho FaceNet
+                pending_liveness_tids, pending_liveness_bboxes = [], []  # Dành cho Liveness
+                rgb_full = None
 
                 for obj in tracked:
                     x1, y1, x2, y2, tid = (int(v) for v in obj)
-
+                    
+                    # Khởi tạo trạng thái lần đầu
                     if tid not in self.track_states:
-                        self.track_states[tid] = {'name': 'Detecting...', 'is_real': True, 'last_ai_time': 0.0}
-
+                        self.track_states[tid] = {
+                            'name': 'Detecting...', 
+                            'is_real': True, 
+                            'last_ai_time': 0.0,
+                            'liveness_checked': False,    # Cờ đánh dấu đã check Liveness
+                            'last_liveness_time': 0.0     # Thời gian check Liveness cuối cùng
+                        }
                     state = self.track_states[tid]
 
+                    # 1. KIỂM TRA COOLDOWN
+                    # Nếu đã check là người thật, đếm ngược cooldown để bắt check lại
+                    if state['liveness_checked']:
+                        if current_time - state['last_liveness_time'] >= LIVENESS_COOLDOWN:
+                            state['liveness_checked'] = False # Xóa cờ, yêu cầu AI quét Liveness lại
+
+                    # 2. XẾP HÀNG XỬ LÝ AI
                     if current_time - state['last_ai_time'] >= self.AI_INTERVAL or state['last_ai_time'] == 0.0:
-                        if rgb_full is None:
-                            rgb_full = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-                        cx1, cy1 = max(0, x1), max(0, y1)
-                        cx2, cy2 = min(w, x2), min(h, y2)
-                        if cx2 > cx1 and cy2 > cy1:
-                            pending_crops[tid] = rgb_full[cy1:cy2, cx1:cx2]
-
+                        state['last_ai_time'] = current_time
+                        if rgb_full is None: rgb_full = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                        
+                        # Đưa vào danh sách Nhận diện danh tính
+                        pending_crops[tid] = rgb_full[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
                         pending_tids.append(tid)
-                        pending_bboxes.append((x1, y1, x2 - x1, y2 - y1))
 
-                if pending_bboxes:
-                    liveness_results = self._batch_liveness(bgr_frame, pending_bboxes)
-                else:
-                    liveness_results = []
+                        # Đưa vào danh sách check Liveness (CHỈ KHI CHƯA CHECK HOẶC VỪA HẾT COOLDOWN)
+                        if not state['liveness_checked']:
+                            pending_liveness_tids.append(tid)
+                            pending_liveness_bboxes.append((x1, y1, x2 - x1, y2 - y1))
 
-                for i, tid in enumerate(pending_tids):
+                # 3. THỰC THI AI: LIVENESS (Chỉ chạy cho người hết Cooldown)
+                liveness_results = self._batch_liveness(bgr_frame, pending_liveness_bboxes) if pending_liveness_bboxes else []
+                
+                for i, tid in enumerate(pending_liveness_tids):
                     state = self.track_states[tid]
-                    state['last_ai_time'] = current_time
-
-                    if tid in pending_crops:
-                        state['name'] = self.processor.get_identity(pending_crops[tid])
-                    else:
-                        state['name'] = "Unknown"
-
+                    
                     state['is_real'] = liveness_results[i]
+                    state['liveness_checked'] = True           # Bật cờ đã check
+                    state['last_liveness_time'] = current_time # Ghi nhận thời gian để tính Cooldown
+
+                # 4. THỰC THI AI: NHẬN DIỆN DANH TÍNH (Vẫn chạy đều đặn mỗi 0.25s)
+                for tid in pending_tids:
+                    state = self.track_states[tid]
+                    state['name'] = self.processor.get_identity(pending_crops[tid]) if tid in pending_crops else "Unknown"
                     self.manager.active_faces[tid] = state['name']
 
+                # 5. CẬP NHẬT TỌA ĐỘ VẼ LÊN MÀN HÌNH
                 new_draw = []
                 for obj in tracked:
                     x1, y1, x2, y2, tid = (int(v) for v in obj)
-                    state   = self.track_states.get(tid)
-                    if state is None: continue
-
-                    name, is_real = state['name'], state['is_real']
-
-                    if not is_real:
-                        text, color = "FAKE", (0, 0, 255)
-                    elif name == "Detecting...":
-                        text, color = "Detecting...", (0, 165, 255)
-                    elif name != "Unknown":
-                        stt, identity = self.manager.get_attendance_info(name, tid)
-                        text, color = f"ID:{stt}. {identity}", (0, 255, 0)
-                    else:
-                        text, color = "Unknown", (0, 165, 255)
-
-                    new_draw.append((x1, y1, x2, y2, text, color))
+                    state = self.track_states.get(tid)
+                    if state:
+                        name, is_real = state['name'], state['is_real']
+                        if not is_real: text, color = "FAKE", (0, 0, 255)
+                        elif name != "Unknown":
+                            stt, identity = self.manager.get_attendance_info(name, tid)
+                            text, color = f"ID:{stt}. {identity}", (0, 255, 0)
+                        else: text, color = "Unknown", (0, 165, 255)
+                        new_draw.append((x1, y1, x2, y2, text, color))
 
                 with self._draw_lock:
                     self._draw_data = new_draw
-
+                    
             except Exception:
                 pass
 
