@@ -142,39 +142,63 @@ def save_attendance(request, session_id=None):
 
 
 def generate_frames():
-    """Đọc camera và dùng luồng ngầm AI để đẩy stream lên web mượt mà"""
+    """Đọc camera và dùng luồng ngầm AI để đẩy stream lên web mượt mà (Đã fix lỗi đơ khi đổi lớp)"""
     global ai_handler
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
 
-    while True:
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            time.sleep(0.01)
-            continue
+    try:
+        fail_count = 0
+        while True:
+            # BẢO VỆ: Nếu camera chưa mở hoặc liên tục đọc lỗi (do luồng cũ đang chiếm dụng)
+            if not cap.isOpened() or fail_count > 5:
+                if cap is not None:
+                    cap.release()
+                time.sleep(0.3)  # Ngủ 0.3 giây đợi luồng cũ nhả hẳn phần cứng ra
+                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Cố gắng kích hoạt lại camera
+                fail_count = 0   # Reset lại bộ đếm lỗi
+                
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                fail_count += 1
+                time.sleep(0.05)
+                continue
+                
+            fail_count = 0  # Đọc ảnh thành công thì reset bộ đếm lỗi về 0
+
+            # 1. Bơm frame vào cho AI chạy ngầm và lấy tọa độ hộp vẽ cũ/mới nhất ra luôn
+            if ai_handler is not None:
+                draw_data = ai_handler.process_frame_async(frame)
+            else:
+                draw_data = []
+
+            # 2. Vẽ ô nhận diện lên hình
+            for x1, y1, x2, y2, text, color in draw_data:
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             
-        # 1. Bơm frame vào cho AI chạy ngầm và lấy tọa độ hộp vẽ cũ/mới nhất ra luôn
-        if ai_handler is not None:
-            draw_data = ai_handler.process_frame_async(frame)
-        else:
-            draw_data = []
+            # 3. Mã hóa ảnh và trả về cho Web
+            ret_enc, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if not ret_enc:
+                continue
 
-        # 2. Vẽ ô nhận diện lên hình
-        for x1, y1, x2, y2, text, color in draw_data:
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-        
-        # 3. Mã hóa ảnh và trả về cho Web
-        ret_enc, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        if not ret_enc:
-            continue
+            frame_bytes = buffer.tobytes()
+            
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
+            # Cầm nhịp FPS để luồng Web không bị quá tải
+            time.sleep(0.03)
 
-        frame_bytes = buffer.tobytes()
-        
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        
-        # Cầm nhịp FPS để luồng Web không bị quá tải
-        time.sleep(0.03)
+    except GeneratorExit:
+        # Trình duyệt ngắt kết nối khi chuyển trang hoặc F5
+        pass
+    except Exception as e:
+        print(f"Lỗi Hệ Thống Stream Camera: {e}")
+    finally:
+        # LUÔN LUÔN GIẢI PHÓNG CAMERA KHI THOÁT LUỒNG
+        if cap is not None:
+            cap.release()
+        print("🛑 [HỆ THỐNG] Đã tự động nhả Camera an toàn!")
 
 def video_feed(request):
     """API endpoint để web gọi stream"""

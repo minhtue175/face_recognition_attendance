@@ -94,7 +94,7 @@
           </thead>
           <tbody>
             {% for item in students_data %}
-            <tr data-student-id="{{ item.student.StudentID }}" data-student-code="{{ item.student.StudentCode }}" style="border-bottom: 1px solid #f0f0f0;">
+            <tr data-student-id="{{ item.student.StudentID }}" data-student-code="{{ item.student.StudentCode }}" data-student-name="{{ item.student.FullName|lower }}" style="border-bottom: 1px solid #f0f0f0;">
               <td style="padding: 12px; font-size: 14px; font-weight: 500;">{{ item.student.StudentCode }}</td>
               <td style="padding: 12px; font-size: 14px;">{{ item.student.FullName }}</td>
               <td style="padding: 12px; font-size: 14px; color: #888;">{{ selected_session.ClassCode }}</td>
@@ -173,7 +173,8 @@ function saveAttendance() {
     rows.forEach(row => {
         records.push({
             student_id: row.dataset.studentId,
-            status: row.querySelector('.status-toggle').dataset.status
+            status: row.querySelector('.status-toggle').dataset.status,
+            liveness: row.dataset.liveness === 'false' ? false : true // gửi kèm trạng thái liveness
         });
     });
 
@@ -198,12 +199,13 @@ function saveAttendance() {
     .catch(err => {
         alert('Đã gửi yêu cầu lưu, vui lòng kiểm tra lại backend API!');
     });
-}
+
+  }
 
 
 
 // ===============================================
-// MỚI THÊM: RADAR TỰ ĐỘNG QUÉT AI & TICK CÓ MẶT
+// RADAR TỰ ĐỘNG QUÉT AI & TICK CÓ MẶT (Đã fix Object và quét theo tên)
 // ===============================================
 setInterval(() => {
     if (!SESSION_ID) return; // Nếu chưa chọn lớp thì không quét
@@ -212,17 +214,39 @@ setInterval(() => {
     .then(res => res.json())
     .then(data => {
         if (data.faces && data.faces.length > 0) {
-            data.faces.forEach(studentCode => {
-                // Quét trong bảng HTML xem có sinh viên nào khớp mã (VD: "Tue") không
-                const row = document.querySelector(`tr[data-student-code="${studentCode}"]`);
-                if (row) {
-                    const presentBtn = row.querySelector('.toggle-btn[onclick*="present"]');
-                    // Nếu có và chưa được tick xanh thì tự động bấm nút
-                    if (presentBtn && !presentBtn.classList.contains('active-present')) {
-                        toggleStatus(presentBtn, 'present');
-                    }
+          data.faces.forEach(item => {
+            const aiKeyword = item.code.toLowerCase(); // Tên hoặc mã do AI nhả ra
+            const isReal = item.is_real;
+            
+            // Tìm dòng sinh viên khớp Mã hoặc khớp một phần Tên
+            let targetRow = null;
+            document.querySelectorAll('tr[data-student-id]').forEach(r => {
+                const code = (r.dataset.studentCode || '').toLowerCase();
+                const name = (r.dataset.studentName || '').toLowerCase();
+                
+                // Trình duyệt sẽ quét: Nếu AI xuất "tue", nó tìm hàng có Mã "tue" hoặc Tên chứa "tue"
+                if (code === aiKeyword || name.includes(aiKeyword)) {
+                    targetRow = r;
                 }
             });
+
+            if (targetRow) {
+              // Đánh dấu trạng thái liveness vào row để bảo mật lúc lưu xuống DB
+              targetRow.dataset.liveness = isReal ? 'true' : 'false';
+              const presentBtn = targetRow.querySelector('.toggle-btn[onclick*="present"]');
+              
+              if (isReal) {
+                // Nếu người thật: Tự động bấm "Có mặt" và đổi nền hàng thành Xanh Lá nhạt
+                if (presentBtn && !presentBtn.classList.contains('active-present')) {
+                  toggleStatus(presentBtn, 'present');
+                }
+                targetRow.style.background = '#f4fcf5'; 
+              } else {
+                // Nếu ảnh giả (Cầm điện thoại): Đổi nền hàng thành Đỏ nhạt để cảnh báo giảng viên
+                targetRow.style.background = '#fff0f0'; 
+              }
+            }
+          });
         }
     })
     .catch(err => console.log("Đang chờ AI Radar...", err));
