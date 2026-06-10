@@ -251,15 +251,16 @@ def student_history(request):
             Student=student_profile
         ).select_related('Class').order_by('-AttendanceDate', '-CheckInTime')
 
-        # Thống kê tổng quan
+        # Thống kê tổng quan (ĐÃ CẬP NHẬT THÊM TRẠNG THÁI LATE)
         stats = AttendanceHistory.objects.filter(Student=student_profile).aggregate(
             total=Count('AttendanceID'),
             present=Count('AttendanceID', filter=Q(Status='present')),
             absent=Count('AttendanceID', filter=Q(Status='absent')),
+            late=Count('AttendanceID', filter=Q(Status='late')),
         )
     except Students.DoesNotExist:
         records = []
-        stats = {'total': 0, 'present': 0, 'absent': 0}
+        stats = {'total': 0, 'present': 0, 'absent': 0, 'late': 0}
 
     return render(request, 'attendance/student_history.html', {
         'records': records,

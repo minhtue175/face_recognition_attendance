@@ -3,13 +3,24 @@
 {% block content %}
 <style>
 .sv-wrap{max-width:860px;margin:2rem auto}
-.page-title{font-size:18px;font-weight:600;margin-bottom:1.5rem;color:#1a1a1a}
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.75rem}
+
+/* --- HEADER & ĐỒNG HỒ --- */
+.header-wrap { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.75rem; }
+.page-title { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 0; }
+.clock-widget { text-align: right; }
+.clock-date { font-size: 13px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+.clock-time { font-size: 24px; font-weight: 700; color: #185FA5; font-variant-numeric: tabular-nums; letter-spacing: 1px; line-height: 1; }
+
+/* --- THỐNG KÊ (Sửa thành 4 cột) --- */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.75rem}
 .stat-card{border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;text-align:center;background:#fff}
 .stat-num{font-size:28px;font-weight:600;color:#1a1a1a}
 .stat-num.green{color:#059669}
 .stat-num.red{color:#ef4444}
+.stat-num.orange{color:#d97706} /* Màu vàng cam cho Đi trễ */
 .stat-label{font-size:13px;color:#6b7280;margin-top:4px}
+
+/* --- BẢNG --- */
 .section-title{font-size:15px;font-weight:600;margin-bottom:1rem;color:#1a1a1a}
 .table-card{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -25,12 +36,17 @@ tr:last-child td{border-bottom:none}
 .badge.absent{background:#fee2e2;color:#991b1b}
 .badge.late{background:#fef3c7;color:#92400e}
 .empty-row{text-align:center;padding:2.5rem;color:#9ca3af;font-size:14px}
-.view-all{display:inline-block;margin-top:1rem;font-size:13px;color:#059669;text-decoration:none}
-.view-all:hover{text-decoration:underline}
 </style>
 
 <div class="sv-wrap">
-  <div class="page-title">Tổng quan</div>
+  <div class="header-wrap">
+    <div class="page-title">Tổng quan</div>
+    
+    <div class="clock-widget">
+        <div id="realtime-date" class="clock-date">Đang tải ngày...</div>
+        <div id="realtime-time" class="clock-time">--:--:--</div>
+    </div>
+  </div>
 
   <div class="stats-row">
     <div class="stat-card">
@@ -40,6 +56,10 @@ tr:last-child td{border-bottom:none}
     <div class="stat-card">
       <div class="stat-num green">{{ stats.present }}</div>
       <div class="stat-label">Có mặt</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num orange">{{ stats.late }}</div>
+      <div class="stat-label">Đi trễ</div>
     </div>
     <div class="stat-card">
       <div class="stat-num red">{{ stats.absent }}</div>
@@ -54,7 +74,6 @@ tr:last-child td{border-bottom:none}
         <tr>
           <th>Lớp học</th>
           <th>Ngày</th>
-          
           <th>Giờ vào</th>
           <th>Kết quả</th>
         </tr>
@@ -76,5 +95,26 @@ tr:last-child td{border-bottom:none}
       </tbody>
     </table>
   </div>
-  </div>
+</div>
+
+<script>
+function updateClock() {
+    const now = new Date();
+    
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('realtime-time').textContent = `${hours}:${minutes}:${seconds}`;
+    
+    const daysOfWeek = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+    const dayName = daysOfWeek[now.getDay()];
+    const date = now.getDate();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    
+    document.getElementById('realtime-date').textContent = `${dayName}, ngày ${date}, tháng ${month}, năm ${year}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+</script>
 {% endblock %}

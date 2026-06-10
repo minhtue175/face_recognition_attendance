@@ -6,8 +6,8 @@
 .history-wrap { width: 100%; padding: 24px; }
 .page-title { font-size: 22px; font-weight: bold; margin-bottom: 24px; color: #333; }
 
-/* Stats */
-.sv-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+/* Stats - Sửa thành 4 cột */
+.sv-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
 .sv-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .sv-stat-num { font-size: 32px; font-weight: bold; color: #1a1a1a; margin: 0; }
 .sv-stat-label { font-size: 14px; color: #6b7280; margin-top: 8px; }
@@ -37,6 +37,10 @@ tr:last-child td { border-bottom: none; }
     <div class="sv-stat">
       <div class="sv-stat-num" style="color:#10b981">{{ stats.present }}</div>
       <div class="sv-stat-label">Có mặt</div>
+    </div>
+    <div class="sv-stat">
+      <div class="sv-stat-num" style="color:#d97706">{{ stats.late }}</div>
+      <div class="sv-stat-label">Đi trễ</div>
     </div>
     <div class="sv-stat">
       <div class="sv-stat-num" style="color:#ef4444">{{ stats.absent }}</div>

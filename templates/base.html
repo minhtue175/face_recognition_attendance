@@ -36,10 +36,7 @@
          class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
         👤 Hồ sơ
       </a>
-      <a href="{% url 'schedule' %}"
-         class="nav-item {% if request.resolver_match.url_name == 'schedule' %}active{% endif %}">
-        📅 Lịch dạy
-      </a>
+
       <a href="{% url 'import_class' %}"
          class="nav-item {% if request.resolver_match.url_name == 'import_class' %}active{% endif %}">
         📤 Import lớp

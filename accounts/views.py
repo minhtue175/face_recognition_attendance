@@ -50,8 +50,8 @@ def dashboard_view(request):
 
 
 def _teacher_dashboard(request, user):
-    """Dashboard riêng cho giảng viên."""
-    from classes.models import Class
+    """Dashboard riêng cho giảng viên — Đã tối ưu về 2 card logic và đếm chuẩn sinh viên"""
+    from classes.models import Class, StudentClass
     from accounts.models import Lecturers
 
     try:
@@ -59,24 +59,31 @@ def _teacher_dashboard(request, user):
         lecturer = Lecturers.objects.filter(User=user).first()
 
         if lecturer:
+            # 1. Lấy danh sách lớp và đếm tổng số lớp phụ trách
             today_sessions = Class.objects.filter(Lecturer=lecturer)
             total_classes = today_sessions.count()
+
+            # 2. Tính tổng số sinh viên quản lý (Tự động lọc trùng lặp bằng set)
+            all_student_classes = StudentClass.objects.filter(Class__in=today_sessions)
+            unique_students = set([sc.Student_id for sc in all_student_classes])
+            total_students = len(unique_students)
         else:
             today_sessions = []
             total_classes = 0
+            total_students = 0
 
+        # Rút gọn lại đúng 2 chỉ số thực tế nhất theo yêu cầu của bạn
         stats = {
             'total_classes': total_classes,
-            'total_students': 0,   # Sẽ đắp logic sau
-            'attendance_rate': 0,  # Sẽ đắp logic sau
-            'sessions_today': len(today_sessions) if today_sessions else 0,
+            'total_students': total_students,
         }
 
     except Exception:
-        # Bắt lỗi nếu lỡ quên migrate
+        # Bắt lỗi an toàn nếu lỡ quên migrate hoặc data trống
         today_sessions = []
         stats = {
-            'total_classes': 0, 'total_students': 0, 'attendance_rate': 0, 'sessions_today': 0,
+            'total_classes': 0, 
+            'total_students': 0,
         }
 
     return render(request, 'accounts/dashboard_teacher.html', {
@@ -101,22 +108,24 @@ def _student_dashboard(request, user):
             Student=student_profile
         ).select_related('Class').order_by('-AttendanceDate', '-CheckInTime')[:5]
 
-        # Thống kê số buổi
+        # Thống kê số buổi (ĐÃ CẬP NHẬT THÊM TRẠNG THÁI LATE)
         stats = AttendanceHistory.objects.filter(Student=student_profile).aggregate(
             total=Count('AttendanceID'),
             present=Count('AttendanceID', filter=Q(Status='present')),
             absent=Count('AttendanceID', filter=Q(Status='absent')),
+            late=Count('AttendanceID', filter=Q(Status='late')),
         )
     except Students.DoesNotExist:
         # Nếu tài khoản này chưa được nối với Sinh viên cụ thể thì trả về 0
         records = []
-        stats = {'total': 0, 'present': 0, 'absent': 0}
+        stats = {'total': 0, 'present': 0, 'absent': 0, 'late': 0}
 
     return render(request, 'accounts/dashboard_student.html', {
         'user': user,
         'records': records,
         'stats': stats,
     })
+
 
 # ─── API Login (JWT / Token cho frontend) ────────────────────
 @api_view(['POST'])
@@ -146,6 +155,7 @@ def api_login(request):
         {'error': 'Sai tên đăng nhập hoặc mật khẩu'},
         status=400
     )
+
 
 # ─── Profile & Register ──────────────────────────────────────
 @login_required
