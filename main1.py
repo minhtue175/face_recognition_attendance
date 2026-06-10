@@ -6,7 +6,7 @@ import time
 import traceback
 import torch
 
-# CHỈNH SỬA: Đổi từ 'modules' sang 'core_ai' cho khớp chuẩn cấu trúc của bạn
+
 from core_ai.face_processor import FaceProcessor
 from core_ai.attendance_logic import AttendanceManager
 from core_ai.MiniFASNet import MiniFASNetV2
@@ -32,7 +32,7 @@ class AttendanceSystem:
         self.liveness_model = MiniFASNetV2(conv6_kernel=(5, 5))
         
         # SỬA PATH: Trỏ đúng vào thư mục weight nằm trong core_ai/models/
-        checkpoint = torch.load("core_ai/models/2.7_80x80_MiniFASNetV2.pth", map_location="cpu")
+        checkpoint = torch.load("core_ai/models/MobileFaceNet_MultiFT_final.pth", map_location="cpu")
         self.liveness_model.load_state_dict(
             {k.replace("module.", ""): v for k, v in checkpoint.items()}
         )
