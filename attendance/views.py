@@ -142,20 +142,26 @@ def save_attendance(request, session_id=None):
 
 
 def generate_frames():
-    """Đọc camera và dùng luồng ngầm AI để đẩy stream lên web mượt mà (Đã fix lỗi đơ khi đổi lớp)"""
+    """Đọc camera và dùng luồng ngầm AI để đẩy stream lên web mượt mà (Fix cho Webcam Rời)"""
     global ai_handler
+    
+    
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) 
 
     try:
         fail_count = 0
         while True:
-            # BẢO VỆ: Nếu camera chưa mở hoặc liên tục đọc lỗi (do luồng cũ đang chiếm dụng)
-            if not cap.isOpened() or fail_count > 5:
+            # BẢO VỆ: Nếu camera chưa mở hoặc liên tục đọc lỗi
+            if not cap.isOpened() or fail_count > 10:
+                print("♻️ [HỆ THỐNG] Đang chờ USB nhả Webcam rời...")
                 if cap is not None:
                     cap.release()
-                time.sleep(0.3)  # Ngủ 0.3 giây đợi luồng cũ nhả hẳn phần cứng ra
-                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Cố gắng kích hoạt lại camera
-                fail_count = 0   # Reset lại bộ đếm lỗi
+                
+                time.sleep(1.0)  
+                
+                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                fail_count = 0
+                continue
                 
             ret, frame = cap.read()
             if not ret or frame is None:
@@ -190,12 +196,12 @@ def generate_frames():
             time.sleep(0.03)
 
     except GeneratorExit:
-        # Trình duyệt ngắt kết nối khi chuyển trang hoặc F5
+        
         pass
     except Exception as e:
         print(f"Lỗi Hệ Thống Stream Camera: {e}")
     finally:
-        # LUÔN LUÔN GIẢI PHÓNG CAMERA KHI THOÁT LUỒNG
+        
         if cap is not None:
             cap.release()
         print("🛑 [HỆ THỐNG] Đã tự động nhả Camera an toàn!")
