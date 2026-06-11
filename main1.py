@@ -20,14 +20,14 @@ class AttendanceSystem:
 
     def __init__(self):
         # ── 1. Face Recognition Model ─────────────────────────
-        # SỬA PATH: Trỏ đúng vào thư mục core_ai/models/
+        
         self.processor = FaceProcessor("core_ai/models/final_face_recognizer.pkl")
         self.manager   = AttendanceManager()
 
         # KHÔNG MỞ CAMERA Ở ĐÂY (Để luồng views.py của Django tự mở bằng CAP_DSHOW)
 
-        # ── 2. Liveness Model (Scale 2.7 - MiniFASNetV2) ─────
-        print("🚀 Đang tải mô hình chống giả mạo Liveness (Scale 2.7)...")
+        # ── 2. Liveness Model─────
+        print("🚀 Đang tải mô hình chống giả mạo...")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.liveness_model = MiniFASNetV2(conv6_kernel=(5, 5))
         
